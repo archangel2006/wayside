@@ -495,10 +495,22 @@ const Cloud=(()=>{
     const email=$('#authEmail').value.trim();
     if(!/^\S+@\S+\.\S+$/.test(email)){ toast('Enter a valid email'); return; }
     $('#authSend').disabled=true;
-    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-    $('#authSend').disabled=false;
-    if(error){ toast(error.message); return; }
-    $('#authDlg').close(); toast('Check your email for the sign-in link');
+    try{
+      const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+      if(error){
+        console.error('Supabase sign-in request failed',error);
+        toast(error.status===401
+          ? 'Supabase rejected this API key. Check that the URL and publishable/anon key belong to the same project.'
+          : error.message);
+        return;
+      }
+      $('#authDlg').close(); toast('Check your email for the sign-in link');
+    }catch(error){
+      console.error('Unable to send Supabase sign-in request',error);
+      toast('Could not reach Supabase. Check your connection and try again.');
+    }finally{
+      $('#authSend').disabled=false;
+    }
   }
   async function init(){
     pill().addEventListener('click',()=>{
