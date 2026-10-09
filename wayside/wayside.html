@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wayside – collect your walk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EEF3F0; --paper:#FBFCFB; --card:#FFFFFF; --ink:#1E2B2C; --soft:#667674; --line:#D6E0DB;
+  --accent:#3F7A66; --accent-d:#2F604F; --mist:#E3ECE8; --on-accent:#fff; --gloss:.85;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+[data-theme="tide"]{--bg:#EAF2F7;--paper:#FAFCFE;--ink:#18283A;--soft:#5F7388;--line:#D0DFEA;--accent:#2F6FA8;--accent-d:#1F5584;--mist:#DDEAF4}
+[data-theme="dusk"]{--bg:#F0EEF7;--paper:#FCFBFE;--ink:#251F3A;--soft:#6F6A88;--line:#DAD6EA;--accent:#6A55B5;--accent-d:#51409A;--mist:#E6E2F4}
+[data-theme="blossom"]{--bg:#F9EEF1;--paper:#FFFCFD;--ink:#3A1F2A;--soft:#8A6B77;--line:#EBD6DD;--accent:#C0446E;--accent-d:#9E3358;--mist:#F5E2E8}
+[data-theme="honey"]{--bg:#F8F3E4;--paper:#FFFDF7;--ink:#33290F;--soft:#857A5C;--line:#E8DFC3;--accent:#9C620F;--accent-d:#7A4C0A;--mist:#F3EBCF}
+[data-theme="night"]{color-scheme:dark;--bg:#12181B;--paper:#181F23;--card:#1F292E;--ink:#E6EEEC;--soft:#93A5A3;--line:#2E3B40;--accent:#5DB894;--accent-d:#7FD0AE;--mist:#222F30;--on-accent:#0F1A16;--gloss:.07}
+
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);transition:background-color .3s,color .3s;
+  font-family:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+h1{font-size:26px;line-height:1.2;margin:0 0 4px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:18px;margin:0 0 10px;font-weight:600}
+p{margin:0}
+.sub{color:var(--soft)}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+
+/* ---------- buttons, fields ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:14px;font-weight:600;
+  background:var(--accent);color:var(--on-accent);min-height:48px;transition:background-color .15s}
+.btn:hover{background:var(--accent-d)}
+.btn.ghost{background:transparent;color:var(--accent-d);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.btn.ghost:hover{background:var(--mist)}
+.btn.block{width:100%}
+.btn.sm{min-height:40px;padding:8px 16px;font-size:15px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.link{color:var(--accent-d);font-weight:600;font-size:15px;text-decoration:underline;text-underline-offset:3px;padding:6px 0;text-align:left}
+label.f{display:block;font-weight:600;font-size:15px;margin:16px 0 6px}
+.in{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--card)}
+.in:focus{outline:none;border-color:var(--accent)}
+textarea.in{resize:vertical;min-height:92px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{padding:7px 14px;border-radius:99px;background:var(--mist);font-size:14px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.pill{display:inline-block;padding:3px 12px;border-radius:99px;background:var(--mist);color:var(--accent-d);font-size:13px;font-weight:600}
+
+/* ---------- specimen glass box ---------- */
+.box{position:relative;aspect-ratio:1/1.08;border-radius:10px;background:linear-gradient(160deg,var(--card) 0%,var(--mist) 100%);
+  border:1px solid var(--line);box-shadow:inset 0 0 0 5px var(--card),inset 0 0 0 6px var(--line);
+  overflow:hidden;text-align:left;display:block;width:100%;transition:transform .2s}
+.box::before{content:"";position:absolute;left:10px;right:55%;top:8px;height:34%;border-radius:6px;
+  background:linear-gradient(135deg,rgba(255,255,255,var(--gloss)),rgba(255,255,255,0));pointer-events:none;z-index:2}
+.art{position:absolute;inset:14px 14px 40px;display:grid;place-items:center}
+.art svg,.art img{max-width:100%;max-height:100%;filter:drop-shadow(0 6px 5px rgba(0,0,0,.25));transform:rotate(var(--tilt,0deg));transition:transform .25s}
+.art img{width:100%;height:100%;object-fit:cover;clip-path:ellipse(46% 47% at 50% 50%)}
+button.box:hover .art svg,.box.static:hover .art svg{transform:rotate(calc(var(--tilt,0deg) + 8deg)) scale(1.06)}
+.box.static{cursor:default}
+.box.empty-box{background:transparent;border-style:dashed;box-shadow:none}
+.box.empty-box::before{display:none}
+.tag{position:absolute;left:12px;right:12px;bottom:10px;background:var(--card);border:1px solid var(--line);border-radius:6px;
+  padding:3px 8px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:3}
+.pick{position:absolute;right:10px;top:10px;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--card);z-index:4;
+  display:grid;place-items:center;color:var(--on-accent);font-size:15px;font-weight:700}
+.pick[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+.pop{animation:pop .45s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.empty{padding:26px 12px;text-align:center;color:var(--soft);border:1.5px dashed var(--line);border-radius:16px}
+
+/* ---------- loading screen ---------- */
+.loading{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;transition:opacity .5s}
+.loading.out{opacity:0;pointer-events:none}
+.ld{display:flex;flex-direction:column;align-items:center;gap:20px;width:min(280px,80%)}
+.ld-box{width:116px;height:124px;position:relative;border-radius:14px;border:1px solid var(--line);
+  background:linear-gradient(160deg,var(--card),var(--mist));box-shadow:inset 0 0 0 6px var(--card),inset 0 0 0 7px var(--line)}
+.ld-box svg{position:absolute;left:22px;top:16px;width:72px;height:72px;filter:drop-shadow(0 6px 5px rgba(0,0,0,.25));animation:drop 1.3s cubic-bezier(.3,1.35,.5,1) .35s both}
+.ld-tag{position:absolute;left:14px;right:14px;bottom:12px;height:14px;border-radius:5px;background:var(--card);border:1px solid var(--line);animation:fadein .5s 1.4s both}
+@keyframes drop{from{transform:translateY(-100px) rotate(-40deg);opacity:0}to{transform:rotate(-8deg);opacity:1}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.ld-name{font-size:28px;font-weight:700;letter-spacing:-.02em;color:var(--accent-d)}
+.ld-bar{width:100%;height:4px;border-radius:4px;background:var(--line);overflow:hidden}
+.ld-bar i{display:block;height:100%;width:0;background:var(--accent);animation:fill 2.7s ease-out forwards}
+@keyframes fill{to{width:100%}}
+.ld-msg{color:var(--soft);font-size:15px;min-height:24px;text-align:center}
+
+/* ---------- landing ---------- */
+.landing{height:100%;overflow-y:auto;background:var(--paper)}
+.l-wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.l-top{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brandmark{display:flex;align-items:center;gap:10px;font-weight:700;font-size:21px;letter-spacing:-.01em;color:var(--accent-d)}
+.hero{display:grid;gap:36px;padding:24px 0 56px;align-items:center}
+.hero h1{font-size:clamp(40px,10vw,68px);line-height:1.03;letter-spacing:-.03em;margin:0 0 16px}
+.lead{font-size:19px;line-height:1.5;color:var(--soft);max-width:34ch}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+.hero-shelf{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px;background:var(--mist);border-radius:24px}
+.hero-shelf .tag{font-size:12px;left:8px;right:8px;bottom:7px;padding:2px 6px}
+.hero-shelf .art{inset:10px 10px 32px}
+.section{padding:52px 0;border-top:1px solid var(--line)}
+.section h2{font-size:28px;letter-spacing:-.015em;margin:0 0 24px}
+.steps,.why{display:grid;gap:16px}
+.step{padding:22px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.step .n{width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:700;margin-bottom:12px}
+.step h3,.why h3{margin:0 0 6px;font-size:18px}
+.step p,.why p{color:var(--soft)}
+.why>div{padding:4px 0}
+.stack{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.stack .chip{font-size:15px;padding:9px 16px;background:var(--mist)}
+.cta{padding:60px 0 28px;text-align:center;border-top:1px solid var(--line)}
+.cta h2{font-size:30px;margin:0 0 20px}
+.foot{padding:20px 0 44px;color:var(--soft);font-size:14px;text-align:center}
+@media (min-width:700px){.steps{grid-template-columns:repeat(3,1fr)}.why{grid-template-columns:repeat(2,1fr)}.l-wrap{padding:0 32px}}
+@media (min-width:900px){.hero{grid-template-columns:1.05fr 1fr;gap:72px;padding:56px 0 92px}.why{grid-template-columns:repeat(4,1fr)}.hero-shelf{padding:20px;gap:14px}}
+
+/* ---------- app shell ---------- */
+.shell{width:100%;height:100%;display:flex;flex-direction:column;background:var(--paper);position:relative}
+main{flex:1;min-width:0;overflow-y:auto;padding:20px 20px 28px}
+.page{max-width:640px;margin:0 auto}
+.two{display:block}
+.shelf{margin-top:8px}
+.builder{margin-top:28px}
+.albums{display:grid;gap:12px}
+.albums .trip{margin:0}
+
+.tabs{display:flex;border-top:1px solid var(--line);background:var(--paper)}
+.tabs [data-nav]{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 0 12px;color:var(--soft);font-weight:600;font-size:12px;position:relative}
+.tabs svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs [aria-current="true"]{color:var(--accent-d)}
+.tabs [aria-current="true"]::after{content:"";position:absolute;left:32%;right:32%;top:-1px;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+.brand,.side-foot{display:none}
+.status-chip{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);padding:0 12px}
+.status-chip i{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+
+.challenge{margin-top:18px;padding:16px 18px;border-radius:18px;background:var(--mist)}
+.challenge p{font-size:19px;line-height:1.35;font-weight:500}
+.shutter-wrap{display:flex;flex-direction:column;align-items:center;margin:30px 0 20px}
+.shutter{width:112px;height:112px;border-radius:50%;background:var(--paper);border:3px solid var(--accent);display:grid;place-items:center;transition:transform .15s}
+.shutter span{width:84px;height:84px;border-radius:50%;background:var(--accent);display:block;transition:background-color .15s}
+.shutter:active{transform:scale(.95)}
+.shutter:hover span{background:var(--accent-d)}
+.shutter[disabled]{opacity:.5}
+.shutter-wrap .link{margin-top:12px}
+.status{min-height:24px;text-align:center;color:var(--accent-d);font-weight:500}
+
+.story{margin-top:18px;padding:20px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.story h3{margin:0 0 8px;font-size:19px}
+.story p{font-size:18px;line-height:1.6;margin-bottom:12px}
+.vault .story{margin-top:12px;padding:16px}
+.vault .story p,.albums .story p{font-size:16px}
+.albums .story{margin:0}
+
+.trip{display:block;width:100%;text-align:left;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--card);margin-bottom:12px}
+.trip:hover{border-color:var(--accent)}
+.strip{display:flex;gap:6px;margin-top:10px}
+.thumb{width:44px;height:44px;border-radius:10px;background:var(--mist);display:grid;place-items:center;padding:5px;overflow:hidden}
+.thumb svg,.thumb img{max-width:100%;max-height:100%}
+.thumb img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.back{color:var(--accent-d);font-weight:600;padding:4px 0 12px;display:inline-block}
+.ico{display:inline-grid;place-items:center}
+.ico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn.icon-only{padding:0;width:40px;min-width:40px}
+.cover{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:14px;border:1px solid var(--line);margin-bottom:14px}
+.cover.ph{display:grid;place-items:center;text-align:center;padding:20px;color:var(--soft);background:var(--mist);animation:pulse 1.6s ease-in-out infinite}
+.story .cover-note{font-size:13px;color:var(--soft);margin:-6px 0 14px;line-height:1.45}
+@keyframes pulse{50%{opacity:.55}}
+
+/* settings */
+.set-sec{margin-top:30px}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.sw{display:flex;flex-direction:column;gap:10px;align-items:flex-start;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);font-weight:600;text-align:left}
+.sw[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.dots{display:flex}
+.dots i{width:24px;height:24px;border-radius:50%;border:2px solid var(--card);margin-right:-7px;box-shadow:0 0 0 1px var(--line)}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.mrow:last-of-type{border-bottom:0}
+
+/* sheet + toast */
+.scrim{position:absolute;inset:0;background:rgba(10,18,20,.4);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fadein .2s}
+.sheet{width:100%;max-width:520px;background:var(--paper);border-radius:24px 24px 0 0;padding:14px 20px 24px;animation:up .28s cubic-bezier(.2,.9,.3,1);max-height:90%;overflow:auto}
+.grab{width:40px;height:4px;background:var(--line);border-radius:4px;margin:0 auto 14px}
+.sheet .big{height:150px;display:grid;place-items:center;background:var(--mist);border-radius:16px;margin-bottom:6px}
+.sheet .big svg{height:110px;filter:drop-shadow(0 6px 5px rgba(0,0,0,.25))}
+.sheet .big img{height:130px;width:130px;object-fit:cover;clip-path:ellipse(46% 47% at 50% 50%)}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.danger{color:#C2503A;font-weight:600;padding:10px 0}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translate(-50%,10px);background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:200;max-width:90%;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* tablet */
+@media (min-width:600px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .albums{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+  .albums.wide{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+}
+/* desktop: sidebar + two-pane pages */
+@media (min-width:900px){
+  .shell{flex-direction:row}
+  .tabs{order:-1;flex-direction:column;flex:none;width:236px;border-top:0;border-right:1px solid var(--line);padding:28px 14px 22px;gap:4px;background:var(--bg)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:22px;letter-spacing:-.01em;padding:0 12px 26px;color:var(--accent-d)}
+  .tabs [data-nav]{flex:none;flex-direction:row;gap:12px;font-size:16px;padding:12px 14px;border-radius:12px;justify-content:flex-start}
+  .tabs [data-nav]:hover{background:var(--mist)}
+  .tabs [aria-current="true"]{background:var(--mist)}
+  .tabs [aria-current="true"]::after{display:none}
+  .side-foot{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+  .side-foot .link{padding:4px 12px}
+  main{padding:44px 56px 64px}
+  .page{max-width:1120px}
+  h1{font-size:32px}
+  .two{display:grid;grid-template-columns:340px 1fr;gap:56px;align-items:start}
+  .trip-two{grid-template-columns:1fr 400px}
+  .cap{position:sticky;top:0}
+  .shelf{margin-top:0}
+  .builder{margin-top:0;padding:24px;border:1px solid var(--line);border-radius:20px;background:var(--card)}
+  .scrim{align-items:center}
+  .sheet{width:440px;border-radius:24px}
+  .grab{display:none}
+  .toast{bottom:32px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.ld-bar i{width:100%}}
+</style>
+</head>
+<body>
+
+<!-- 1. loading -->
+<div class="loading" id="loading" role="status" aria-live="polite">
+  <div class="ld">
+    <div class="ld-box"><span id="ld-art"></span><div class="ld-tag"></div></div>
+    <div class="ld-name">Wayside</div>
+    <div class="ld-bar"><i></i></div>
+    <div class="ld-msg" id="ld-msg">Waking the cutout model…</div>
+    <button class="link" id="skip">Skip</button>
+  </div>
+</div>
+
+<!-- 2. landing -->
+<div class="landing" id="landing" hidden></div>
+
+<!-- 3. app -->
+<div class="shell" id="shell" hidden>
+  <main id="app" tabindex="-1"></main>
+  <nav class="tabs" aria-label="Main">
+    <div class="brand" id="brand"></div>
+    <button data-nav="collect"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Collect</span></button>
+    <button data-nav="albums"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Albums</span></button>
+    <button data-nav="stories"><svg viewBox="0 0 24 24"><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z"/><path d="M9.5 9h5M9.5 13h5"/></svg><span>Stories</span></button>
+    <button data-nav="settings"><svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Settings</span></button>
+    <div class="side-foot">
+      <div class="status-chip"><i></i>Open models: demo mode</div>
+      <button class="link" id="about">About Wayside</button>
+    </div>
+  </nav>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="file" accept="image/*" capture="environment" hidden>
+
+<script>
+/* ================= data ================= */
+const ART = {
+  leaf:`<svg viewBox="0 0 100 100"><path d="M50 7C82 24 90 56 50 93 10 56 18 24 50 7Z" fill="#B8503A"/><path d="M50 14V90M50 40L34 28M50 56L68 42M50 70L33 58" stroke="#7E2F20" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="40" cy="48" r="3" fill="#7E2F20"/><circle cx="62" cy="62" r="2.5" fill="#7E2F20"/></svg>`,
+  acorn:`<svg viewBox="0 0 100 100"><path d="M30 46C30 78 44 92 50 92S70 78 70 46Z" fill="#C79A5B"/><path d="M24 48C24 28 38 20 50 20S76 28 76 48Z" fill="#6E4B2A"/><path d="M50 20V10" stroke="#6E4B2A" stroke-width="5" stroke-linecap="round"/><path d="M34 34l8 8M48 30l10 10M62 34l6 8" stroke="#4E331B" stroke-width="2"/></svg>`,
+  candy:`<svg viewBox="0 0 100 100"><path d="M8 34L30 50 8 66Z M92 34L70 50 92 66Z" fill="#F29BB4"/><rect x="28" y="30" width="44" height="40" rx="14" fill="#E8628A"/><path d="M38 38C44 34 56 34 62 38" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/></svg>`,
+  feather:`<svg viewBox="0 0 100 100"><path d="M78 10C40 14 22 44 24 70L22 92" stroke="#8D8579" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M78 10C52 8 28 28 25 66 54 62 76 44 78 10Z" fill="#D9D2C6"/><path d="M60 30L30 62M66 24L40 56" stroke="#B7AE9F" stroke-width="1.6"/></svg>`,
+  pebble:`<svg viewBox="0 0 100 100"><path d="M16 58C14 36 34 22 56 24 80 26 90 44 84 62 78 78 50 84 32 78 22 74 17 68 16 58Z" fill="#8F9A9B"/><path d="M30 40C36 32 48 30 56 32" stroke="#C2CBCB" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="62" cy="58" r="2" fill="#6F7A7B"/><circle cx="48" cy="64" r="1.6" fill="#6F7A7B"/></svg>`
+};
+const LEAF_LOGO=`<svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 7C82 24 90 56 50 93 10 56 18 24 50 7Z" fill="var(--accent)"/><path d="M50 22V86" stroke="var(--paper)" stroke-width="5" stroke-linecap="round"/></svg>`;
+const SAMPLES=[
+  {art:'leaf',label:'Crumpled red leaf',desc:'spotted, slightly menacing'},
+  {art:'acorn',label:'Acorn, cap askew',desc:'small and very smug'},
+  {art:'candy',label:'Candy wrapper',desc:'sweet evidence of a bad decision'},
+  {art:'feather',label:'Grey feather',desc:'dropped by someone in a hurry'},
+  {art:'pebble',label:'Pocket pebble',desc:'quietly pleased to be chosen'}
+];
+const PROMPTS=['Find something smaller than your thumbnail.','Find something that has been here longer than you.','Find a texture you would want to touch.','Find something that someone left behind.','Find the oldest-looking thing on this street.','Find something that is not green.','Find something that makes a sound when you move it.','Find something that looks almost like a face.'];
+const STORY_THEMES=['Mystery','Cozy','Cheeky','Spooky','Adventure'];
+const THEMES=[
+  {id:'moss',name:'Moss',c:['#3F7A66','#EEF3F0','#1E2B2C']},
+  {id:'tide',name:'Tide',c:['#2F6FA8','#EAF2F7','#18283A']},
+  {id:'dusk',name:'Dusk',c:['#6A55B5','#F0EEF7','#251F3A']},
+  {id:'blossom',name:'Blossom',c:['#C0446E','#F9EEF1','#3A1F2A']},
+  {id:'honey',name:'Honey',c:['#9C620F','#F8F3E4','#33290F']},
+  {id:'night',name:'Night',c:['#5DB894','#12181B','#E6EEEC']}
+];
+const seedTrips=()=>[{
+  id:1,name:'Walk home from college',date:'Tue 6 Oct',place:'the old bridge',
+  items:[
+    {id:1,art:'leaf',label:'Crumpled red leaf',desc:'spotted, slightly menacing',note:'Fell right in front of me outside the library.',tilt:-6},
+    {id:2,art:'acorn',label:'Acorn, cap askew',desc:'small and very smug',note:'',tilt:5},
+    {id:3,art:'candy',label:'Candy wrapper',desc:'sweet evidence of a bad decision',note:'Smelled like strawberries.',tilt:-3},
+    {id:4,art:'feather',label:'Grey feather',desc:'dropped by someone in a hurry',note:'',tilt:7}],
+  stories:[{id:1,title:'The Case of the Smug Acorn',theme:'mystery',
+    text:'Near the old bridge, the evening had a mysterious feeling, and the ground was offering clues. A crumpled red leaf lay where it fell outside the library, spotted and slightly menacing. Beside it, an acorn with its cap askew looked small and very smug, as if it knew exactly who had dropped the strawberry-scented wrapper nearby.\nNobody ever solved the case, but you walked home a little more suspicious of the trees.'}]
+},{
+  id:2,name:'Sunday market loop',date:'Sun 4 Oct',place:'',
+  items:[
+    {id:5,art:'pebble',label:'Pocket pebble',desc:'quietly pleased to be chosen',note:'Warm from the sun.',tilt:4},
+    {id:6,art:'feather',label:'Grey feather',desc:'dropped by someone in a hurry',note:'',tilt:-8}],
+  stories:[]
+}];
+
+/* ================= state ================= */
+let sid=100;
+const state={
+  screen:'loading',view:'collect',theme:'moss',
+  draft:{items:[],promptIdx:0,sampleIdx:0},
+  trips:seedTrips(),openTrip:null,selected:new Set(),
+  storyDraft:{theme:'',place:''},pendingStory:null,busy:false,justAdded:false
+};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const artHTML=it=>it.img?`<img src="${it.img}" alt="">`:ART[it.art];
+const tripById=id=>state.trips.find(t=>t.id===id);
+const cap1=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),2400);}
+
+/* ================= theme ================= */
+function applyTheme(id){
+  state.theme=id;document.documentElement.dataset.theme=id;
+  try{localStorage.setItem('wayside-theme',id)}catch(e){}
+  $('#brand').innerHTML=LEAF_LOGO+'Wayside';
+}
+
+/* ================= screens ================= */
+function showScreen(name){
+  stopVoice();
+  state.screen=name;
+  $('#landing').hidden=name!=='landing';
+  $('#shell').hidden=name!=='app';
+  if(name==='landing'){renderLanding();$('#landing').scrollTop=0}
+  if(name==='app')render();
+}
+function boot(){
+  let saved=null;try{saved=localStorage.getItem('wayside-theme')}catch(e){}
+  applyTheme(THEMES.some(t=>t.id===saved)?saved:'moss');
+  $('#ld-art').innerHTML=ART.leaf;
+  const msgs=['Waking the cutout model…','Loading the vision model…','Sharpening the story pen…','Ready.'];
+  msgs.forEach((m,i)=>setTimeout(()=>{$('#ld-msg').textContent=m},i*850));
+  setTimeout(finishLoading,3200);
+  $('#skip').onclick=finishLoading;
+}
+function finishLoading(){
+  if(state.screen!=='loading')return;
+  showScreen('landing');
+  const l=$('#loading');l.classList.add('out');setTimeout(()=>{l.hidden=true},550);
+}
+function enterApp(view){state.view=view||'collect';showScreen('app')}
+
+/* ================= landing ================= */
+function shelfBox(art,label,tilt){
+  return `<div class="box static" style="--tilt:${tilt}deg"><div class="art">${ART[art]}</div><div class="tag">${label}</div></div>`;
+}
+function renderLanding(){
+  $('#landing').innerHTML=`
+  <div class="l-wrap">
+    <header class="l-top">
+      <div class="brandmark">${LEAF_LOGO}Wayside</div>
+      <button class="btn sm" data-enter>Open app</button>
+    </header>
+
+    <section class="hero">
+      <div>
+        <h1>Collect your walk.</h1>
+        <p class="lead">Snap the odd little things you pass on the way home. Wayside pins each one in a glass box, then turns your finds into a short story.</p>
+        <div class="hero-actions">
+          <button class="btn" data-enter>Start a walk</button>
+          <button class="btn ghost" id="how-btn">See how it works</button>
+        </div>
+      </div>
+      <div class="hero-shelf" aria-label="Example collection">
+        ${shelfBox('leaf','Red leaf',-6)}${shelfBox('acorn','Acorn',5)}${shelfBox('candy','Wrapper',-3)}
+        ${shelfBox('feather','Feather',7)}${shelfBox('pebble','Pebble',-4)}
+        <div class="box static empty-box"><div class="tag" style="border-style:dashed;color:var(--soft)">Yours next</div></div>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><h3>Walk and snap</h3><p>Take a photo of anything that catches your eye. A challenge on the screen nudges you to look closer.</p></div>
+        <div class="step"><div class="n">2</div><h3>Pin it in glass</h3><p>The background is cut away and your find gets a name and a one-line description in its own box.</p></div>
+        <div class="step"><div class="n">3</div><h3>Read your story</h3><p>Back home, pick finds, add a theme and a place, and get a short story built from your real walk. Then paint a cover for it.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Why open models</h2>
+      <div class="why">
+        <div><h3>Open models only</h3><p>Cutouts, labels and stories come from open-weight models. No closed AI service sits behind it.</p></div>
+        <div><h3>Albums stay with you</h3><p>Your walks and stories are saved in your own browser, not in a server database.</p></div>
+        <div><h3>Free to run</h3><p>Small models on free hosting. No API keys and no cost per photo.</p></div>
+        <div><h3>Swap the models</h3><p>A model is a setting, so a better one can replace a small one.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>What is under the hood</h2>
+      <p class="sub" style="max-width:56ch">Every smart step uses an open model from the Hugging Face Hub. Photos are processed on the server and then discarded. The page you are looking at is a prototype with stand-in answers.</p>
+      <div class="stack" style="margin-top:18px">
+        <span class="chip">rembg for cutouts</span><span class="chip">A small vision model for labels</span>
+        <span class="chip">A small language model for stories</span><span class="chip">A small image model for covers</span><span class="chip">FastAPI on Hugging Face Spaces</span><span class="chip">Piper voice, planned</span>
+      </div>
+    </section>
+
+    <section class="cta">
+      <h2>Your walk home is a collection.</h2>
+      <button class="btn" data-enter>Start a walk</button>
+    </section>
+    <footer class="foot">Built for the Hacktoberfest Open-Source AI Challenge, theme Touch Grass.</footer>
+  </div>`;
+  document.querySelectorAll('[data-enter]').forEach(b=>b.onclick=()=>enterApp('collect'));
+  $('#how-btn').onclick=()=>$('#how').scrollIntoView({behavior:'smooth'});
+}
+
+/* ================= app router ================= */
+function render(){
+  if(state.lastView!==state.view){stopVoice();state.lastView=state.view}
+  const tab=state.view==='trip'?'albums':state.view;
+  document.querySelectorAll('[data-nav]').forEach(b=>b.setAttribute('aria-current',b.dataset.nav===tab));
+  ({collect:renderCollect,albums:renderAlbums,trip:renderTrip,stories:renderStories,settings:renderSettings})[state.view]();
+}
+function go(v){state.view=v;render();$('#app').scrollTop=0}
+
+function boxHTML(it,o={}){
+  return `<div style="position:relative">
+    <button class="box ${o.fresh?'pop':''}" data-open="${it.id}" style="--tilt:${it.tilt}deg" aria-label="Open ${esc(it.label)}">
+      <div class="art">${artHTML(it)}</div><div class="tag">${esc(it.label)}</div>
+    </button>
+    ${o.pickable?`<button class="pick" data-pick="${it.id}" aria-pressed="${state.selected.has(it.id)}" aria-label="Include ${esc(it.label)} in story">${state.selected.has(it.id)?'✓':''}</button>`:''}
+  </div>`;
+}
+function bindBoxes(items){
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openSpecimen(items.find(i=>i.id==b.dataset.open)));
+  document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
+    const id=+b.dataset.pick;state.selected.has(id)?state.selected.delete(id):state.selected.add(id);renderTrip(true);
+  });
+}
+
+/* ---------- collect ---------- */
+function renderCollect(){
+  const d=state.draft;
+  $('#app').innerHTML=`<div class="page"><div class="two"><section class="cap">
+    <h1>Out for a walk?</h1>
+    <p class="sub">Snap things you find. Come back for a story.</p>
+    <div class="challenge"><p id="challenge">${esc(PROMPTS[d.promptIdx])}</p></div>
+    <button class="link" id="stuck">Can't find anything? Give me another idea</button>
+    <div class="shutter-wrap">
+      <button class="shutter" id="shutter" aria-label="Take a photo" ${state.busy?'disabled':''}><span></span></button>
+      <button class="link" id="sample">No camera? Add a sample</button>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </section>
+  <section class="shelf">
+    <div class="row between" style="margin:8px 0 12px"><h2 style="margin:0">This walk</h2><span class="sub">${d.items.length} collected</span></div>
+    ${d.items.length?`<div class="grid">${d.items.slice().reverse().map((it,i)=>boxHTML(it,{fresh:i===0&&state.justAdded})).join('')}</div>`
+      :`<div class="empty">Nothing yet. Your first find goes in a glass box here.</div>`}
+    <div style="margin-top:22px"><button class="btn block" id="end" ${d.items.length?'':'disabled'}>End walk</button></div>
+  </section></div></div>`;
+  state.justAdded=false;
+  $('#stuck').onclick=()=>{d.promptIdx=(d.promptIdx+1)%PROMPTS.length;$('#challenge').textContent=PROMPTS[d.promptIdx]};
+  $('#shutter').onclick=()=>$('#file').click();
+  $('#sample').onclick=()=>capture({...SAMPLES[d.sampleIdx++%SAMPLES.length]});
+  $('#end').onclick=openEndSheet;
+  bindBoxes(d.items);
+}
+$('#file').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const s=SAMPLES[state.draft.sampleIdx++%SAMPLES.length];
+  capture({img:URL.createObjectURL(f),label:s.label,desc:s.desc});e.target.value='';
+});
+function capture(base){
+  if(state.busy)return;state.busy=true;
+  const st=$('#status'),sh=$('#shutter');if(sh)sh.disabled=true;
+  st.textContent='Cutting out the background…';
+  setTimeout(()=>{if(state.view==='collect'&&$('#status'))$('#status').textContent='Naming your find…'},900);
+  setTimeout(()=>{
+    state.draft.items.push({id:++sid,note:'',tilt:Math.round(Math.random()*14-7),...base});
+    state.busy=false;state.justAdded=true;if(state.view==='collect')renderCollect();
+  },1800);
+}
+
+/* ---------- sheets ---------- */
+function sheet(html){
+  closeSheet();
+  const s=document.createElement('div');s.className='scrim';s.id='scrim';
+  s.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+  s.addEventListener('click',e=>{if(e.target===s)closeSheet()});
+  $('#shell').appendChild(s);return s;
+}
+function closeSheet(){const s=$('#scrim');if(s)s.remove()}
+function openSpecimen(it){
+  const s=sheet(`<div class="big">${artHTML(it)}</div>
+    <h2 style="margin-top:12px">${esc(it.label)}</h2><p class="sub">${esc(it.desc)}</p>
+    <label class="f" for="note">Your note</label>
+    <textarea class="in" id="note" placeholder="Where was it? What did it smell like?">${esc(it.note)}</textarea>
+    <div class="row between" style="margin-top:14px"><button class="danger" id="del">Remove</button><button class="btn" id="done">Save note</button></div>`);
+  s.querySelector('#note').oninput=e=>{it.note=e.target.value};
+  s.querySelector('#done').onclick=()=>{closeSheet();render()};
+  s.querySelector('#del').onclick=()=>{
+    const list=state.view==='collect'?state.draft.items:tripById(state.openTrip).items;
+    list.splice(list.indexOf(it),1);state.selected.delete(it.id);closeSheet();render();
+  };
+}
+function openEndSheet(){
+  const n=state.draft.items.length;
+  const s=sheet(`<h2>Name this walk</h2><p class="sub">${n} ${n===1?'find':'finds'} ready for the album.</p>
+    <label class="f" for="tn">Walk name</label><input class="in" id="tn" placeholder="Walk home from college" maxlength="40">
+    <label class="f" for="tp">Place (optional)</label><input class="in" id="tp" placeholder="The old bridge" maxlength="40">
+    <div style="margin-top:20px"><button class="btn block" id="save">Save to albums</button></div>`);
+  s.querySelector('#save').onclick=()=>{
+    const t={id:++sid,name:s.querySelector('#tn').value.trim()||'Untitled walk',place:s.querySelector('#tp').value.trim(),
+      date:new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}),items:state.draft.items,stories:[]};
+    state.trips.unshift(t);state.draft={items:[],promptIdx:0,sampleIdx:state.draft.sampleIdx};
+    closeSheet();openTripView(t.id);
+  };
+  setTimeout(()=>s.querySelector('#tn').focus(),50);
+}
+
+/* ---------- albums ---------- */
+function renderAlbums(){
+  const finds=state.trips.reduce((a,t)=>a+t.items.length,0),stories=state.trips.reduce((a,t)=>a+t.stories.length,0);
+  $('#app').innerHTML=`<div class="page"><h1>Albums</h1>
+    <p class="sub" style="margin-bottom:18px">${state.trips.length} walks, ${finds} finds, ${stories} stories.</p>
+    ${state.trips.length?'<div class="albums">'+state.trips.map(t=>`
+      <button class="trip" data-trip="${t.id}">
+        <div class="row between"><strong>${esc(t.name)}</strong><span class="sub" style="font-size:14px">${esc(t.date)}</span></div>
+        <div class="sub" style="font-size:14px">${t.items.length} finds, ${t.stories.length} ${t.stories.length===1?'story':'stories'}</div>
+        <div class="strip">${t.items.slice(0,6).map(i=>`<div class="thumb">${artHTML(i)}</div>`).join('')}</div>
+      </button>`).join('')+'</div>':`<div class="empty">No walks saved yet. Go collect something.</div>`}</div>`;
+  document.querySelectorAll('[data-trip]').forEach(b=>b.onclick=()=>openTripView(+b.dataset.trip));
+}
+function openTripView(id){
+  state.openTrip=id;state.selected=new Set();state.pendingStory=null;
+  state.storyDraft={theme:'',place:tripById(id).place||''};
+  state.view='trip';render();$('#app').scrollTop=0;
+}
+
+/* ---------- trip ---------- */
+function renderTrip(keep){
+  const t=tripById(state.openTrip),sd=state.storyDraft,y=$('#app').scrollTop,n=state.selected.size;
+  $('#app').innerHTML=`<div class="page"><div class="two trip-two"><section class="pane-a">
+    <div class="row between"><button class="back" id="back">‹ Albums</button><button class="btn ghost sm" id="export">Export photo book</button></div>
+    <h1>${esc(t.name)}</h1>
+    <p class="sub" style="margin-bottom:18px">${esc(t.date)}${t.place?', '+esc(t.place):''}</p>
+    <div class="grid">${t.items.map(i=>boxHTML(i,{pickable:true})).join('')}</div>
+  </section><section class="pane-b"><div class="builder">
+      <h2>Make a story</h2><p class="sub">Tick the finds to include (${n} chosen).</p>
+      <label class="f" for="place">Setting</label><input class="in" id="place" value="${esc(sd.place)}" placeholder="Where does it happen?">
+      <label class="f" for="theme">Theme</label><input class="in" id="theme" value="${esc(sd.theme)}" placeholder="Pick one or write your own">
+      <div class="chips">${STORY_THEMES.map(x=>`<button class="chip" data-chip="${x}" aria-pressed="${sd.theme===x}">${x}</button>`).join('')}</div>
+      <div style="margin-top:18px"><button class="btn block" id="gen" ${n>0&&!state.busy?'':'disabled'}>${state.busy?'Writing…':'Write my story'}</button></div>
+      <div id="out">${state.pendingStory?storyHTML(state.pendingStory,true):''}</div>
+    </div>
+    ${t.stories.length?`<div class="vault" style="margin-top:28px"><h2>Story vault</h2>${t.stories.map(s=>storyHTML(s,false)).join('')}</div>`:''}
+  </section></div></div>`;
+  if(keep===true)$('#app').scrollTop=y;
+  $('#back').onclick=()=>go('albums');
+  $('#export').onclick=()=>toast('Photo book export arrives with the backend.');
+  $('#place').oninput=e=>sd.place=e.target.value;
+  $('#theme').oninput=e=>{sd.theme=e.target.value;document.querySelectorAll('[data-chip]').forEach(c=>c.setAttribute('aria-pressed',c.dataset.chip===sd.theme))};
+  document.querySelectorAll('[data-chip]').forEach(c=>c.onclick=()=>{sd.theme=c.dataset.chip;$('#theme').value=sd.theme;
+    document.querySelectorAll('[data-chip]').forEach(x=>x.setAttribute('aria-pressed',x===c))});
+  $('#gen').onclick=generate;
+  bindBoxes(t.items);bindStory();
+}
+function storyHTML(s,isNew){
+  return `<article class="story" data-key="${esc(s.title)}${isNew?'*':''}" data-sid="${s.id||''}">${coverHTML(s)}<h3>${esc(s.title)}</h3>
+    ${s.text.split('\n').map(p=>`<p>${esc(p)}</p>`).join('')}
+    <div class="row" style="gap:10px;flex-wrap:wrap">${voiceBtns()}${coverBtn(s)}
+    ${isNew?`<button class="btn sm" id="keep">Save to vault</button><button class="link" id="redo">Try again</button>`:''}</div></article>`;
+}
+function bindStory(){
+  document.querySelectorAll('[data-listen]').forEach(b=>b.onclick=()=>toggleVoice(b.closest('.story')));
+  refreshVoice();
+  document.querySelectorAll('[data-cover]').forEach(b=>b.onclick=()=>makeCover(b.closest('.story')));
+  const keep=$('#keep');if(keep)keep.onclick=()=>{
+    const t=tripById(state.openTrip),s=state.pendingStory;s.id=++sid;t.stories.unshift(s);state.pendingStory=null;renderTrip(true);toast('Saved to the story vault.');
+  };
+  const redo=$('#redo');if(redo)redo.onclick=generate;
+}
+function generate(){
+  if(state.busy)return;state.busy=true;renderTrip(true);
+  setTimeout(()=>{
+    const t=tripById(state.openTrip),sd=state.storyDraft;
+    state.pendingStory=fakeStory(t.items.filter(i=>state.selected.has(i.id)),sd.theme.trim(),sd.place.trim());
+    state.busy=false;if(state.view==='trip'){renderTrip(true);const o=$('#out');if(o)o.scrollIntoView({behavior:'smooth',block:'nearest'})}
+  },1600);
+}
+function fakeStory(items,theme,place){
+  const th=(theme||'quiet').toLowerCase();
+  const open=`${place?'Near '+place+', t':'T'}he evening had a ${th} feeling, and the ground was offering clues.`;
+  const bits=items.map((it,k)=>{
+    const l=it.label.toLowerCase(),note=it.note.trim().replace(/\.$/,'');
+    const lead=['','Beside it, ','Not far off, ','Then, '][Math.min(k,3)];
+    const a=note?`${lead}${l} turned up, ${it.desc}. ${note}.`:`${lead}${l} turned up, ${it.desc}.`;
+    return lead?a:cap1(a);
+  });
+  const end=`You carried it all home in your pocket and your head, a little more ${th} than before.`;
+  return {title:items.length?`The ${cap1(th)} Tale of the ${items[0].label.split(',')[0]}`:'A short walk',theme:th,place,labels:items.map(i=>i.label),text:[open,bits.join(' '),end].join('\n')};
+}
+
+/* ---------- story cover (stand-in for the open image model) ---------- */
+const hash=str=>[...String(str)].reduce((a,c)=>(Math.imul(a,31)+c.charCodeAt(0))>>>0,7);
+const COVER_PAL={
+  mystery:['#2B2D5B','#6A55B5','#E8C27A'],
+  cozy:['#F6D9B8','#D9825F','#7A4B3A'],
+  cheeky:['#FFD3E2','#C0446E','#FFE29A'],
+  spooky:['#171229','#4B3A7A','#C9B8FF'],
+  adventure:['#BFE3D0','#3F7A66','#F2D58A'],
+  quiet:['#D5E4EA','#5F8FA0','#F4E3B3']
+};
+function coverPrompt(s){
+  const l=(s.labels||[]).map(x=>x.toLowerCase());
+  return `A soft illustrated cover for a short ${s.theme||'quiet'} story${s.place?', set near '+s.place:''}${l.length?'. Hints of: '+l.join(', '):''}. Gentle colors, simple shapes, no text.`;
+}
+function coverHTML(s){
+  if(s._busy)return '<div class="cover ph" role="status">Painting your cover. The real server may take up to a minute.</div>';
+  if(!s.cover)return '';
+  return `<img class="cover" src="${s.cover}" alt="Cover for ${esc(s.title)}"><div class="cover-note">Prototype stand-in image. The real one comes from an open image model, prompted with: ${esc(s.coverPrompt||'')}</div>`;
+}
+function coverBtn(s){
+  return `<button class="btn ghost sm" data-cover ${s._busy?'disabled':''}><span class="ico">${ICON.image}</span><span class="lbl">${s._busy?'Painting…':s.cover?'New cover':'Make cover'}</span></button>`;
+}
+function makeCover(el){
+  const isNew=el.dataset.key.endsWith('*');
+  const t=tripById(state.openTrip);
+  const s=isNew?state.pendingStory:t.stories.find(x=>String(x.id)===el.dataset.sid);
+  if(!s||s._busy)return;
+  s._busy=true;renderTrip(true);
+  setTimeout(()=>{
+    s.seed=(s.seed||0)+1;
+    s.cover=drawCover(s,s.seed*7919+hash(s.title));
+    s.coverPrompt=coverPrompt(s);
+    s._busy=false;
+    if(state.view==='trip')renderTrip(true);
+  },2600);
+}
+function drawCover(s,seed){
+  const W=800,H=600,c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d');
+  let a=seed>>>0;const rnd=()=>{a=(Math.imul(a,1664525)+1013904223)>>>0;return a/4294967296};
+  const keys=Object.keys(COVER_PAL);
+  const pal=COVER_PAL[s.theme]||COVER_PAL[keys[hash(s.theme||'')%keys.length]];
+  const sky=x.createLinearGradient(0,0,0,H);sky.addColorStop(0,pal[0]);sky.addColorStop(1,pal[2]);
+  x.fillStyle=sky;x.fillRect(0,0,W,H);
+  const sx=150+rnd()*500,sy=110+rnd()*100;
+  [110,70,40].forEach((r,i)=>{x.beginPath();x.arc(sx,sy,r,0,7);x.fillStyle='rgba(255,255,255,'+(0.18+i*0.2)+')';x.fill()});
+  for(let l=0;l<3;l++){
+    const base=320+l*80,amp=30+rnd()*40,steps=4;
+    x.beginPath();x.moveTo(0,H);x.lineTo(0,base);
+    let px=0;
+    for(let i=1;i<=steps;i++){const nx=W*i/steps;x.quadraticCurveTo(px+W/steps/2,base+(rnd()-.5)*amp*2,nx,base+(rnd()-.5)*amp);px=nx}
+    x.lineTo(W,H);x.closePath();
+    x.fillStyle=pal[1];x.globalAlpha=0.45+l*0.25;x.fill();x.globalAlpha=1;
+  }
+  const sc=x.createLinearGradient(0,H*0.5,0,H);sc.addColorStop(0,'rgba(0,0,0,0)');sc.addColorStop(1,'rgba(0,0,0,.55)');
+  x.fillStyle=sc;x.fillRect(0,H*0.5,W,H*0.5);
+  x.fillStyle='#fff';x.font='700 44px Figtree, system-ui, sans-serif';
+  const lines=[];let cur='';
+  s.title.split(' ').forEach(w=>{const t=cur?cur+' '+w:w;if(x.measureText(t).width>W-100&&cur){lines.push(cur);cur=w}else cur=t});
+  lines.push(cur);
+  const show=lines.slice(-3);
+  show.forEach((ln,i)=>x.fillText(ln,50,H-50-(show.length-1-i)*54));
+  return c.toDataURL('image/png');
+}
+
+/* ---------- voice: listen, pause, resume, stop ---------- */
+const ICON={
+  play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>',
+  pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>',
+  image:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M5 17l5-4 3 2 3-3 3 3"/></svg>'
+};
+const voice={key:null,state:'idle',u:null};
+function voiceBtns(){
+  return `<button class="btn ghost sm" data-listen aria-label="Listen to story"><span class="ico">${ICON.play}</span><span class="lbl">Listen</span></button>`;
+}
+function refreshVoice(){
+  document.querySelectorAll('.story').forEach(el=>{
+    const b=el.querySelector('[data-listen]');if(!b)return;
+    const mine=voice.key===el.dataset.key&&voice.state!=='idle';
+    const s=mine?voice.state:'idle';
+    b.querySelector('.ico').innerHTML=s==='playing'?ICON.pause:ICON.play;
+    b.querySelector('.lbl').textContent=s==='playing'?'Pause':s==='paused'?'Resume':'Listen';
+    b.setAttribute('aria-label',s==='playing'?'Pause story':s==='paused'?'Resume story':'Listen to story');
+  });
+}
+function stopVoice(){
+  if('speechSynthesis' in window)speechSynthesis.cancel();
+  voice.key=null;voice.state='idle';voice.u=null;refreshVoice();
+}
+function toggleVoice(el){
+  if(!('speechSynthesis' in window))return toast('Voice is not available in this browser.');
+  const key=el.dataset.key;
+  if(voice.key===key&&voice.state==='playing'){speechSynthesis.pause();voice.state='paused';return refreshVoice()}
+  if(voice.key===key&&voice.state==='paused'){speechSynthesis.resume();voice.state='playing';return refreshVoice()}
+  speechSynthesis.cancel();
+  const text=[...el.querySelectorAll('h3,p')].map(x=>x.textContent).join('. ');
+  const u=new SpeechSynthesisUtterance(text);
+  const done=()=>{if(voice.u===u){voice.key=null;voice.state='idle';voice.u=null;refreshVoice()}};
+  u.onend=done;u.onerror=done;
+  voice.key=key;voice.state='playing';voice.u=u;
+  speechSynthesis.speak(u);refreshVoice();
+}
+
+/* ---------- stories (all) ---------- */
+function renderStories(){
+  const all=state.trips.flatMap(t=>t.stories.map(s=>({s,t})));
+  $('#app').innerHTML=`<div class="page"><h1>Stories</h1>
+    <p class="sub" style="margin-bottom:18px">Everything you have written, across all walks.</p>
+    ${all.length?'<div class="albums wide">'+all.map(({s,t})=>`
+      <article class="story" data-key="${esc(s.title)}">${s.cover?`<img class="cover" src="${s.cover}" alt="Cover for ${esc(s.title)}">`:''}<div class="row" style="margin-bottom:8px;flex-wrap:wrap"><span class="pill">${esc(cap1(s.theme||'story'))}</span><span class="sub" style="font-size:14px">From ${esc(t.name)}</span></div>
+        <h3>${esc(s.title)}</h3>${s.text.split('\n').map(p=>`<p>${esc(p)}</p>`).join('')}
+        <div class="row" style="gap:10px;flex-wrap:wrap">${voiceBtns()}<button class="link" data-trip="${t.id}">Open walk</button></div>
+      </article>`).join('')+'</div>'
+      :`<div class="empty">No stories yet. Open a walk, tick a few finds and write one.</div>`}</div>`;
+  document.querySelectorAll('[data-trip]').forEach(b=>b.onclick=()=>openTripView(+b.dataset.trip));
+  bindStory();
+}
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  $('#app').innerHTML=`<div class="page" style="max-width:760px"><h1>Settings</h1>
+    <p class="sub">Make Wayside feel like yours.</p>
+    <section class="set-sec"><h2>Theme</h2>
+      <div class="swatches" role="group" aria-label="Theme">${THEMES.map(t=>`
+        <button class="sw" data-theme-id="${t.id}" aria-pressed="${state.theme===t.id}">
+          <span class="dots">${t.c.map(c=>`<i style="background:${c}"></i>`).join('')}</span>${t.name}</button>`).join('')}</div>
+    </section>
+    <section class="set-sec"><h2>Open models</h2>
+      <p class="sub" style="margin-bottom:6px">These are placeholders. The backend is not connected in this prototype.</p>
+      <div class="mrow"><div><strong>Cutout</strong><div class="sub">rembg (U2-Net)</div></div><span class="pill">Demo</span></div>
+      <div class="mrow"><div><strong>Vision labels</strong><div class="sub">Small vision model, Hugging Face</div></div><span class="pill">Demo</span></div>
+      <div class="mrow"><div><strong>Story writer</strong><div class="sub">Small instruct model, Hugging Face</div></div><span class="pill">Demo</span></div>
+      <div class="mrow"><div><strong>Cover image</strong><div class="sub">Small image model, Hugging Face</div></div><span class="pill">Demo</span></div>
+      <div class="mrow"><div><strong>Voice</strong><div class="sub">Browser voice now, Piper planned</div></div><span class="pill">Browser</span></div>
+    </section>
+    <section class="set-sec"><h2>Data</h2>
+      <div class="row" style="flex-wrap:wrap;gap:12px">
+        <button class="btn ghost sm" id="intro">Replay intro</button>
+        <button class="btn ghost sm" id="reset">Reset demo data</button>
+      </div>
+    </section></div>`;
+  document.querySelectorAll('[data-theme-id]').forEach(b=>b.onclick=()=>{
+    applyTheme(b.dataset.themeId);
+    document.querySelectorAll('[data-theme-id]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  });
+  $('#intro').onclick=()=>{
+    const l=$('#loading');l.hidden=false;l.classList.remove('out');
+    l.querySelector('.ld-bar i').style.animation='none';void l.offsetWidth;l.querySelector('.ld-bar i').style.animation='';
+    state.screen='loading';boot();
+  };
+  $('#reset').onclick=()=>{state.trips=seedTrips();state.draft={items:[],promptIdx:0,sampleIdx:0};toast('Demo data restored.')};
+}
+
+/* ================= wiring ================= */
+document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>go(b.dataset.nav));
+$('#about').onclick=()=>showScreen('landing');
+boot();
+</script>
+</body>
+</html>
