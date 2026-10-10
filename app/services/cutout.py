@@ -35,8 +35,12 @@ def remove_background(image: Image.Image) -> bytes:
     """
     Downscales images larger than 800px longest side,
     strips background using lightweight u2netp, and returns PNG bytes.
+    If u2netp over-erodes diffuse or scenic subjects (like rainbows, skies, or sunsets)
+    leaving less than 10% visible, preserves the photo with a feathered sticker edge.
     Frees memory buffers immediately with gc.collect().
     """
+    import numpy as np
+    from PIL import ImageDraw, ImageFilter
     import rembg
 
     original_size = image.size
@@ -59,6 +63,26 @@ def remove_background(image: Image.Image) -> bytes:
     except Exception as exc:
         logger.error("[Cutout Inference Failed] Error during rembg.remove(): %s", exc, exc_info=True)
         raise
+
+    # Check if cutout over-eroded the image (e.g. rainbow, sky, landscape with no solid silhouette)
+    alpha = np.array(result)[:, :, 3]
+    visible_ratio = np.mean(alpha > 25)
+    if visible_ratio < 0.10:
+        logger.info(
+            "[Cutout Protection] Diffuse/scenic subject detected (only %.1f%% visible). Applying soft sticker feather.",
+            visible_ratio * 100
+        )
+        w, h = image.size
+        mask = Image.new("L", (w, h), 255)
+        draw = ImageDraw.Draw(mask)
+        border = max(6, int(min(w, h) * 0.04))
+        draw.rectangle([(0, 0), (w, border)], fill=0)
+        draw.rectangle([(0, h - border), (w, h)], fill=0)
+        draw.rectangle([(0, 0), (border, h)], fill=0)
+        draw.rectangle([(w - border, 0), (w, h)], fill=0)
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=border))
+        result = image.convert("RGBA")
+        result.putalpha(mask)
 
     logger.info("[Cutout Encode] Encoding result as transparent PNG...")
     buf = io.BytesIO()

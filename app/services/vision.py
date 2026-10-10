@@ -91,13 +91,13 @@ def _parse_label_json(text: str) -> dict:
                 pass
 
     # 2. Try Key-Value format: "Label: ... \n Description: ..."
-    lbl_m = re.search(r"(?:label|name|object|find)\s*:\s*([^\n\r,]+)", cleaned, re.IGNORECASE)
+    lbl_m = re.search(r"(?:label|name|object|find|answer)\s*:\s*([^\n\r,]+)", cleaned, re.IGNORECASE)
     desc_m = re.search(r"(?:description|desc|detail|note)\s*:\s*([^\n\r]+)", cleaned, re.IGNORECASE)
     if lbl_m:
-        label = lbl_m.group(1).strip().strip('"\'')
-        description = desc_m.group(1).strip().strip('"\'') if desc_m else "found on the path"
+        label = lbl_m.group(1).strip().strip('"\'').rstrip('. ')
+        description = desc_m.group(1).strip().strip('"\'').rstrip('. ') if desc_m else "found on the path"
         if label and "<" not in label and ">" not in label:
-            return {"label": label[:50], "description": description[:80]}
+            return {"label": label.capitalize()[:50], "description": description[:80]}
 
     # 3. Try bracketed list format: "[item1, item2, ...]"
     list_m = re.search(r"\[([^\]]+)\]", cleaned)
@@ -111,7 +111,7 @@ def _parse_label_json(text: str) -> dict:
     # 4. Try natural language parsing (e.g. "A red maple leaf lying on damp grass.")
     lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
     first_line = lines[0] if lines else ""
-    first_line = re.sub(r"^(it is|this is|there is|i see|a photo of|an image of|a picture of)\s+", "", first_line, flags=re.IGNORECASE)
+    first_line = re.sub(r"^(answer|label|name|object|find|it is|this is|there is|i see|a photo of|an image of|a picture of)\s*[:\-]?\s*", "", first_line, flags=re.IGNORECASE)
     first_line = first_line.strip().strip('"\'').strip("[]{}")
 
     if first_line and "<" not in first_line and len(first_line) > 1:

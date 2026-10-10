@@ -131,7 +131,7 @@ def parse_label_json(text: str) -> Optional[dict]:
                 pass
 
     # 2. Try Key-Value format: "Label: ... \n Description: ..."
-    lbl_m = re.search(r"(?:label|name|object|find)\s*:\s*([^\n\r,]+)", cleaned, re.IGNORECASE)
+    lbl_m = re.search(r"(?:label|name|object|find|answer)\s*:\s*([^\n\r,]+)", cleaned, re.IGNORECASE)
     desc_m = re.search(r"(?:description|desc|detail|note)\s*:\s*([^\n\r]+)", cleaned, re.IGNORECASE)
     if lbl_m:
         label = lbl_m.group(1).strip().strip('"\'')
@@ -142,7 +142,7 @@ def parse_label_json(text: str) -> Optional[dict]:
     # 3. Try natural language (e.g. "A red maple leaf lying on damp grass.")
     lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
     first_line = lines[0] if lines else ""
-    first_line = re.sub(r"^(it is|this is|there is|i see|a photo of|an image of|a picture of)\s+", "", first_line, flags=re.IGNORECASE)
+    first_line = re.sub(r"^(answer|label|name|object|find|it is|this is|there is|i see|a photo of|an image of|a picture of)\s*[:\-]?\s*", "", first_line, flags=re.IGNORECASE)
     first_line = first_line.strip().strip('"\'').strip("[]{}")
 
     if first_line and "<" not in first_line and len(first_line) > 1:
