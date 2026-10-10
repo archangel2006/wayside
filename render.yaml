@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: wayside
-    runtime: docker
-    plan: free
-    rootDir: wayside
-    dockerfilePath: Dockerfile
-    dockerContext: .
