@@ -10,8 +10,10 @@ It is an entry for the Hacktoberfest Open-Source AI Challenge, Week 1, "Touch Gr
 
 ## Current state
 
-- `static/index.html` (currently `wayside.html`) is a complete clickable prototype: loading screen, landing page, sidebar app, six themes, responsive layout.
-- All AI behavior in it is **fake**: `SAMPLES`, `PROMPTS`, and `fakeStory()` return canned or templated output.
+- `static/` is a complete clickable prototype split into plain ES modules: loading screen, landing page, sidebar app, six themes, responsive layout, voice controls, cover button.
+- `static/js/api.js` holds every AI call. It has `MOCK = true`, so the UI runs with canned answers. Real `fetch` code is written for each endpoint but untested.
+- `static/js/storage.js` (IndexedDB) is written but not wired in.
+- All AI behavior in it is **fake**: `SAMPLES`, `PROMPTS`, `fakeStory()` and `drawCover()` return canned or templated output.
 - Data is held in memory only. Refreshing resets it.
 - The Make cover button draws a canvas stand-in (`drawCover`). Replace it with the image model's output.
 - The backend does not exist yet. Building it, and deploying it, is the main job.
@@ -35,18 +37,23 @@ When you make something real, remove the stand-in it replaces. Do not leave both
 - Cutouts: `rembg` (CPU).
 - Vision and text: `transformers` on CPU. Model names come from env vars `WAYSIDE_VISION_MODEL` and `WAYSIDE_STORY_MODEL`. Starting candidates: `HuggingFaceTB/SmolVLM-256M-Instruct` and `Qwen/Qwen2.5-1.5B-Instruct`. Both are untested on free CPU, so measure before committing.
 - Cover images: a small, fast text-to-image model through `diffusers` on CPU (SD-Turbo class). Chosen only after a speed test and a licence check. Name from env var `WAYSIDE_IMAGE_MODEL`.
-- Frontend: one self-contained HTML file with inline CSS and JS. No build step, no framework.
+- Frontend: plain ES modules plus two CSS files, served by FastAPI from `static/`. No build step, no framework.
 - Browser storage: IndexedDB for walks, cutouts and stories. `localStorage` for the theme only.
 
 ```
 Dockerfile
 requirements.txt
-app/main.py
-app/config.py
+app/main.py  app/config.py  app/limits.py
 app/services/{cutout,vision,story,cover}.py
 static/index.html
+static/css/{themes,app}.css
+static/js/main.js router.js state.js data.js api.js storage.js
+static/js/themes.js icons.js art.js cover.js voice.js components.js
+static/js/views/{intro,collect,albums,trip,stories,settings}.js
 docs/diagrams.md
 ```
+
+See `README.md` for what each file does.
 
 Keep modules small. One service per file, one job each.
 
@@ -55,17 +62,17 @@ Keep modules small. One service per file, one job each.
 Do these in order. Stop and let the owner test after each.
 
 0. **Deploy first.** A hello-world FastAPI app in a Docker Space that serves `static/index.html` and answers `GET /api/health`. Open the public URL on a phone. Fix deployment problems now, not on the last day.
-1. **Cutout.** `POST /api/cutout` returns a transparent PNG using rembg. Resize large phone photos (longest side about 1024px) first. Download the rembg model in the Docker build. Wire it to the shutter and replace the oval-crop stand-in.
+1. **Cutout.** `POST /api/cutout` returns a transparent PNG using rembg. Resize large phone photos (longest side about 1024px) first. Download the rembg model in the Docker build. Wire it to the shutter through `api.snap` and replace the oval-crop stand-in. `api.js` has one `MOCK` flag. While endpoints are built one at a time, split it per function (for example `MOCK_CUTOUT`) so unbuilt endpoints keep returning canned answers.
 2. **Label.** `POST /api/label` sends the image to the vision model and returns `{label, description}`. **Measure the time.** If a label takes more than about 20 seconds on free CPU, switch to a smaller model before moving on.
 3. **Story.** `POST /api/story` takes `{items, theme, place}` and returns `{title, text}`. Replace `fakeStory()`. Measure the time here too.
-4. **Persistence.** Save and load walks in IndexedDB. Replace the in-memory `state.trips`. Wrap every storage call in try/catch and handle empty storage.
+4. **Persistence.** Wire up `static/js/storage.js`: load walks on boot, save after each change. Replace the in-memory demo `state.trips`. Store real Blobs for cutouts, not `blob:` URLs, which die when the page closes. Wrap every storage call in try/catch and handle empty storage.
 5. **Challenge prompt.** `GET /api/challenge`, one line. The canned list stays as the fallback.
 6. **Cover.** `POST /api/cover` takes `{title, theme, place, labels}` and returns a PNG. Time it first. Use the smallest size that looks fine (for example 384 or 512 pixels square) and the step count the model card recommends. If it takes more than about 60 seconds, shrink the size or switch models. Check the model's licence before committing. Replace `drawCover` in the frontend.
 7. Only then: album export and import, open TTS.
 
 ## Public-server safety
 
-This app is open to the internet. Treat every request as untrusted.
+This app is open to the internet. Treat every request as untrusted. Put these checks in `app/limits.py` so routes stay short.
 
 - Accept only images (check content type and actually open with Pillow). Cap upload size, for example 8 MB, and reject everything else.
 - Resize images before any model sees them.
@@ -121,6 +128,13 @@ Hints of: {labels}. Gentle colors, simple shapes, no text.
 Use a negative prompt such as "text, letters, watermark, faces". Turbo-style models use very few steps and little or no guidance, so follow the model card. The frontend builds the same prompt string for display, so keep the two in sync. The cover is a generated scene. It does **not** contain the user's actual specimens, and no copy may imply that it does.
 
 ## Frontend conventions
+
+- **Plain ES modules, entry `js/main.js`.** It must be served over HTTP (not opened from `file://`).
+- **All network calls go through `api.js`.** Views never call `fetch`. Errors thrown there are friendly messages that views show with `toast()`.
+- **All albums storage goes through `storage.js`.** `localStorage` is only for the theme.
+- Views render into `#app`. Shared UI (specimen boxes, bottom sheets) lives in `components.js`.
+- Modules may import each other in cycles because they only share functions. To keep that safe, **do not run code at module top level** except in `main.js`. A module should only define things.
+- Add a theme in two places: a block in `css/themes.css` and an entry in `js/themes.js`.
 
 - Mobile first. Three breakpoints: phone (default), 600px tablet, 900px desktop with sidebar.
 - **Use the existing CSS variables.** Colors are `--bg --paper --card --ink --soft --line --accent --accent-d --mist --on-accent --gloss`. Never hard-code a UI color. The only fixed colors are inside the specimen SVG art and the danger red.

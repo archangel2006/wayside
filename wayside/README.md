@@ -24,10 +24,10 @@ Be clear about what is real.
 
 | Part | State |
 |---|---|
-| Frontend (all pages, six themes, responsive layout) | Working prototype, single HTML file |
+| Frontend (all pages, six themes, responsive layout, voice controls, cover button) | Working prototype, split into plain ES modules under `static/` |
 | Cutouts, labels, stories, challenge prompts | **Stand-in answers in the frontend. Not AI yet.** |
 | Backend (FastAPI + open models on a Hugging Face Space) | Planned, specified below |
-| Saving albums in the browser (IndexedDB) | Planned. The prototype keeps everything in memory. |
+| Saving albums in the browser (IndexedDB) | `static/js/storage.js` is written but **not wired in**. The prototype keeps everything in memory. |
 | Story cover images (small open text-to-image model) | Planned. The prototype draws a stand-in image so you can see the flow. |
 | Voice | Browser built-in voice with pause and resume for now, Piper planned |
 
@@ -155,32 +155,60 @@ One `trips` store. Each record:
 
 ---
 
-## Project structure (target)
+## Project structure
 
 ```
 wayside/
   README.md              # also the Hugging Face Space config (YAML header above)
-  AGENT.md
-  LICENSE
+  AGENT.md               # instructions for AI coding tools
+  LICENSE                # choose one before publishing
   .gitignore
   Dockerfile
   requirements.txt
   docs/
     diagrams.md
     screenshots/         # for the DEV post
-  app/
+  app/                   # backend
+    __init__.py
     main.py              # FastAPI app, routes, serves static/
-    config.py            # model names and limits from env vars
+    config.py            # model names, size limits, from env vars
+    limits.py            # upload checks, rate limit, one-model-job-at-a-time lock
     services/
-      cutout.py          # rembg wrapper
-      vision.py          # vision model call, returns label JSON
+      __init__.py
+      cutout.py          # rembg
+      vision.py          # vision model, returns label JSON
       story.py           # story and challenge prompts
-      cover.py           # text-to-image model for story covers
-  static/
-    index.html           # the whole UI (currently wayside.html)
+      cover.py           # text-to-image cover
+  static/                # frontend, plain ES modules, no build step
+    index.html           # shell only: markup, links to css and js
+    css/
+      themes.css         # the six theme variable blocks
+      app.css            # layout, components, responsive rules
+    js/
+      main.js            # entry: wires navigation, starts the intro
+      router.js          # which screen and page is showing
+      state.js           # app state and small helpers
+      data.js            # canned prompts, story themes, demo walks
+      api.js             # every call to the AI: mock now, real fetch later
+      storage.js         # IndexedDB for albums (not wired in yet)
+      themes.js          # theme list and apply
+      icons.js           # inline SVG icons
+      art.js             # sample specimen drawings and logo
+      cover.js           # cover prompt, HTML, canvas stand-in painter
+      voice.js           # listen, pause, resume, stop
+      components.js      # specimen boxes and bottom sheets
+      views/
+        intro.js         # loading screen and landing page
+        collect.js       # collect page
+        albums.js        # albums list
+        trip.js          # a walk: grid, story builder, vault, covers
+        stories.js       # all stories
+        settings.js      # theme picker and model status
 ```
 
-Right now only the frontend exists.
+**Built so far:** everything under `static/`, plus `docs/` and `.gitignore`. **Not built yet:** `Dockerfile`, `requirements.txt` and the whole `app/` backend.
+
+Frontend rules of thumb: all network calls live in `api.js`, all albums storage lives in `storage.js`, and views only render into `#app`.
 
 ---
 
@@ -202,7 +230,14 @@ WAYSIDE_STORY_MODEL=Qwen/Qwen2.5-1.5B-Instruct
 WAYSIDE_IMAGE_MODEL=<pick after a speed and licence check>
 ```
 
-To try the prototype alone, open `static/index.html` in a browser. It works with no backend, using stand-in answers.
+To try the frontend alone, serve the `static/` folder (browsers block ES modules on `file://`):
+
+```bash
+cd static
+python -m http.server 8000
+```
+
+Then open `http://localhost:8000`. `static/js/api.js` has `MOCK = true`, so everything works with no backend, using stand-in answers. Set it to `false` once the endpoints exist.
 
 ---
 
