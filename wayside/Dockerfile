@@ -14,7 +14,8 @@ USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
-    U2NET_HOME=/home/user/.u2net
+    U2NET_HOME=/home/user/.u2net \
+    OMP_NUM_THREADS=1
 
 WORKDIR $HOME/app
 
