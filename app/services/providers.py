@@ -107,21 +107,51 @@ def pil_to_jpeg_bytes(image: Image.Image, max_dim: int = 512) -> bytes:
 # --------------------------------------------------------------------------
 
 def parse_label_json(text: str) -> Optional[dict]:
-    """Defensively extract label JSON from raw model output."""
+    """
+    Robustly extract label and description from model output.
+    Handles strict JSON, single-quoted dicts, key-values, lists, and natural language.
+    Guards against prompt placeholder leakage.
+    """
     if not text:
         return None
-    text = re.sub(r"```[a-zA-Z]*", "", text).strip()
-    m = re.search(r"\{[^{}]+\}", text, re.DOTALL)
-    if not m:
-        return None
-    try:
-        obj = json.loads(m.group(0))
-        label = str(obj.get("label", "")).strip()[:60]
-        description = str(obj.get("description", "")).strip()[:80]
-        if label and description:
-            return {"label": label, "description": description}
-    except (json.JSONDecodeError, AttributeError):
-        pass
+
+    cleaned = re.sub(r"```[a-zA-Z]*", "", text).replace("```", "").strip()
+
+    # 1. Try standard or single-quoted JSON: {"label": "...", "description": "..."}
+    m = re.search(r"\{[^{}]+\}", cleaned, re.DOTALL)
+    if m:
+        for candidate in [m.group(0), m.group(0).replace("'", '"')]:
+            try:
+                obj = json.loads(candidate)
+                label = str(obj.get("label", "")).strip()[:60]
+                description = str(obj.get("description", "")).strip()[:80]
+                if label and "<" not in label and ">" not in label:
+                    return {"label": label, "description": description or "found on the path"}
+            except Exception:
+                pass
+
+    # 2. Try Key-Value format: "Label: ... \n Description: ..."
+    lbl_m = re.search(r"(?:label|name|object|find)\s*:\s*([^\n\r,]+)", cleaned, re.IGNORECASE)
+    desc_m = re.search(r"(?:description|desc|detail|note)\s*:\s*([^\n\r]+)", cleaned, re.IGNORECASE)
+    if lbl_m:
+        label = lbl_m.group(1).strip().strip('"\'')
+        description = desc_m.group(1).strip().strip('"\'') if desc_m else "found on the path"
+        if label and "<" not in label and ">" not in label:
+            return {"label": label[:50], "description": description[:80]}
+
+    # 3. Try natural language (e.g. "A red maple leaf lying on damp grass.")
+    lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
+    first_line = lines[0] if lines else ""
+    first_line = re.sub(r"^(it is|this is|there is|i see|a photo of|an image of|a picture of)\s+", "", first_line, flags=re.IGNORECASE)
+    first_line = first_line.strip().strip('"\'').strip("[]{}")
+
+    if first_line and "<" not in first_line and len(first_line) > 1:
+        words = first_line.rstrip(".").split()
+        if len(words) <= 4:
+            return {"label": " ".join(words).title()[:50], "description": "spotted on the way"}
+        else:
+            return {"label": " ".join(words[:4]).title()[:50], "description": " ".join(words[4:])[:80]}
+
     return None
 
 

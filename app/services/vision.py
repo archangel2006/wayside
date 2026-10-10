@@ -32,10 +32,9 @@ _model = None
 _model_name = None
 
 LABEL_PROMPT = (
-    "You are labeling an object a person found on a walk. "
-    "Reply with JSON only, no other text, in this exact shape: "
-    '{"label": "<2 to 4 words>", "description": "<one short, playful phrase, under 8 words>"} '
-    "Name the main object only. If you are unsure, give your best short guess."
+    "Identify the main object in this image for a nature walk journal. "
+    "Respond with JSON: {\"label\": \"object name\", \"description\": \"short phrase\"}. "
+    "Name the main object in 2 to 4 words. If unsure, name what you see."
 )
 
 FALLBACK = {"label": "Mystery find", "description": "hard to say"}
@@ -67,21 +66,64 @@ def _load_model():
 
 
 def _parse_label_json(text: str) -> dict:
-    """Defensively extract label JSON from raw model output."""
-    # Strip code fences
-    text = re.sub(r"```[a-zA-Z]*", "", text).strip()
-    # Find first {...}
-    m = re.search(r"\{[^{}]+\}", text, re.DOTALL)
-    if not m:
+    """
+    Robustly extract label and description from model output.
+    Handles strict JSON, single-quoted dicts, key-values, lists, and natural language.
+    Guards against prompt placeholder leakage (e.g. '<2 to 4 words>').
+    """
+    if not text:
         return None
-    try:
-        obj = json.loads(m.group(0))
-        label = str(obj.get("label", "")).strip()[:60]
-        description = str(obj.get("description", "")).strip()[:80]
-        if label and description:
-            return {"label": label, "description": description}
-    except (json.JSONDecodeError, AttributeError):
-        pass
+
+    cleaned = re.sub(r"```[a-zA-Z]*", "", text).replace("```", "").strip()
+
+    # 1. Try standard or single-quoted JSON: {"label": "...", "description": "..."}
+    m = re.search(r"\{[^{}]+\}", cleaned, re.DOTALL)
+    if m:
+        for candidate in [m.group(0), m.group(0).replace("'", '"')]:
+            try:
+                obj = json.loads(candidate)
+                label = str(obj.get("label", "")).strip()[:60]
+                description = str(obj.get("description", "")).strip()[:80]
+                # Reject template placeholder leakage
+                if label and "<" not in label and ">" not in label:
+                    return {"label": label, "description": description or "found on the path"}
+            except Exception:
+                pass
+
+    # 2. Try Key-Value format: "Label: ... \n Description: ..."
+    lbl_m = re.search(r"(?:label|name|object|find)\s*:\s*([^\n\r,]+)", cleaned, re.IGNORECASE)
+    desc_m = re.search(r"(?:description|desc|detail|note)\s*:\s*([^\n\r]+)", cleaned, re.IGNORECASE)
+    if lbl_m:
+        label = lbl_m.group(1).strip().strip('"\'')
+        description = desc_m.group(1).strip().strip('"\'') if desc_m else "found on the path"
+        if label and "<" not in label and ">" not in label:
+            return {"label": label[:50], "description": description[:80]}
+
+    # 3. Try bracketed list format: "[item1, item2, ...]"
+    list_m = re.search(r"\[([^\]]+)\]", cleaned)
+    if list_m:
+        items = [i.strip().strip('"\'') for i in list_m.group(1).split(",") if i.strip()]
+        if items:
+            label = " ".join(items[0].split()[:4]).capitalize()
+            description = ", ".join(items[1:4]) if len(items) > 1 else "spotted on the way"
+            return {"label": label[:50], "description": description[:80]}
+
+    # 4. Try natural language parsing (e.g. "A red maple leaf lying on damp grass.")
+    lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
+    first_line = lines[0] if lines else ""
+    first_line = re.sub(r"^(it is|this is|there is|i see|a photo of|an image of|a picture of)\s+", "", first_line, flags=re.IGNORECASE)
+    first_line = first_line.strip().strip('"\'').strip("[]{}")
+
+    if first_line and "<" not in first_line and len(first_line) > 1:
+        words = first_line.rstrip(".").split()
+        if len(words) <= 4:
+            clean_lbl = " ".join(words).title().strip('"\' ')
+            return {"label": clean_lbl[:50], "description": "spotted on the way"}
+        else:
+            clean_lbl = " ".join(words[:4]).title().strip('"\' ')
+            clean_desc = " ".join(words[4:]).strip('"\' ')
+            return {"label": clean_lbl[:50], "description": clean_desc[:80]}
+
     return None
 
 
