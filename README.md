@@ -212,43 +212,56 @@ Frontend rules of thumb: all network calls live in `api.js`, all albums storage 
 
 ---
 
-## Deploy to a Hugging Face Space
+## Deployment Guide
 
-1. Create a new Space on Hugging Face, SDK **Docker**, free CPU hardware.
-2. Push this repo to it. The YAML header at the top of this README tells the Space to use Docker and port 7860.
-3. The `Dockerfile` installs the requirements, runs as a non-root user, and starts `uvicorn app.main:app --host 0.0.0.0 --port 7860`.
-4. Download the models **at build time** so the first visitor does not wait for them. The rembg model and both Hub models should be fetched in a `RUN` step.
-5. Open the Space URL on a phone and test with mobile data.
+### Option 1: Hugging Face Spaces (Recommended for full local models)
+- Hardware: Free CPU (2 vCPU, 16 GB RAM).
+- Setup: Create Space, SDK Docker, Port 7860.
+- All models (`rembg u2netp`, `SmolVLM-256M-Instruct`, `Qwen2.5-0.5B-Instruct`) run locally in-memory without exceeding RAM limits.
 
-Requirements are expected to include: `fastapi`, `uvicorn`, `python-multipart`, `pillow`, `rembg` with its CPU runtime, `transformers`, and a CPU build of `torch`. Versions are not pinned or tested yet.
+### Option 2: Render Free Tier (512 MB RAM limit)
+- Hardware: Free Web Service (0.1 vCPU, 512 MB RAM, port 10000).
+- `rembg` (u2netp) runs locally within ~40-60 MB RAM.
+- Because local LLMs require >800 MB RAM and would trigger Render's 512 MB OOM-killer, use the **Provider Abstraction** with external open-model inference APIs:
+  ```bash
+  # In Render Environment Variables:
+  WAYSIDE_VISION_PROVIDER=hf
+  WAYSIDE_STORY_PROVIDER=hf
+  HF_TOKEN=hf_...                # Free Hugging Face User Access Token
+  ```
+  Or connect to any OpenAI-compatible endpoint (Groq, Together, Ollama, OpenRouter):
+  ```bash
+  WAYSIDE_VISION_PROVIDER=openai
+  WAYSIDE_STORY_PROVIDER=openai
+  OPENAI_API_BASE=https://api.groq.com/openai/v1
+  OPENAI_API_KEY=gsk_...
+  ```
 
-Model names come from environment variables so they can be swapped in the Space settings:
+### Configuration Environment Variables
 
-```
-WAYSIDE_VISION_MODEL=HuggingFaceTB/SmolVLM-256M-Instruct
-WAYSIDE_STORY_MODEL=Qwen/Qwen2.5-1.5B-Instruct
-WAYSIDE_IMAGE_MODEL=<pick after a speed and licence check>
-```
-
-To try the frontend alone, serve the `static/` folder (browsers block ES modules on `file://`):
-
-```bash
-cd static
-python -m http.server 8000
-```
-
-Then open `http://localhost:8000`. `static/js/api.js` has `MOCK = true`, so everything works with no backend, using stand-in answers. Set it to `false` once the endpoints exist.
+| Variable | Default | Description |
+|---|---|---|
+| `WAYSIDE_VISION_PROVIDER` | `local` | `local`, `hf`, `openai`, `fallback` |
+| `WAYSIDE_STORY_PROVIDER` | `local` | `local`, `hf`, `openai`, `fallback` |
+| `WAYSIDE_VISION_MODEL` | `HuggingFaceTB/SmolVLM-256M-Instruct` | Vision model ID |
+| `WAYSIDE_STORY_MODEL` | `Qwen/Qwen2.5-0.5B-Instruct` | Language model ID |
+| `HF_TOKEN` | `""` | Hugging Face API token for serverless inference |
+| `OPENAI_API_BASE` | `https://api.openai.com/v1` | Base URL for OpenAI-compatible inference |
+| `OPENAI_API_KEY` | `""` | API key for OpenAI-compatible endpoint |
+| `MAX_UPLOAD_MB` | `8` | Maximum image upload size in MB |
+| `RATE_LIMIT_PER_MIN` | `30` | Per-IP rate limit per minute |
+| `PORT` | `7860` | Web server port (automatically handles 10000 on Render) |
 
 ---
 
 ## Known limits
 
-- **Free CPU is slow.** Expect a few seconds for a cutout and roughly 10 to 30 seconds for a story. The UI shows progress for each. These numbers are estimates until tested.
-- **The Space sleeps** when idle, so the first visit after a quiet period is slow. Open it once before demoing.
-- **One job at a time.** The backend runs model calls one after another and replies "busy" when the queue is long.
-- **Covers are slow.** A small diffusion model on free CPU may take 20 to 60 seconds or more per image at small sizes. This is untested. The cover is a separate button, so it never blocks the story. Image models also differ in licence (some are non-commercial), so check before choosing one.
-- **Small models are limited.** Labels can be wrong or bland, and stories can be repetitive. The UI never shows raw errors for a bad label.
-- **Albums live in one browser.** Another phone or a cleared browser starts empty.
+- **Free CPU is slow.** Expect a few seconds for a cutout and roughly 10 to 30 seconds for a story when running full local models.
+- **Render 512 MB Free Tier:** Cannot host full local LLM weights without OOM; use `hf` or `openai` provider modes.
+- **The Space/Render container sleeps** when idle, so the first visit after a quiet period takes a moment to wake.
+- **Concurrency isolation:** Separate asyncio locks are maintained for `/api/cutout`, `/api/label`, and `/api/story`, allowing the frontend's parallel `Promise.all` requests to execute concurrently without contention.
+- **Defensive fallbacks:** If any model call fails or times out, safe fallbacks are returned, preventing uncaught 500 errors in user experience.
+- **Albums live in one browser.** Saved in IndexedDB on the device.
 
 ---
 

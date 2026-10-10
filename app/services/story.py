@@ -101,9 +101,31 @@ def generate_story(items: list, theme: str, place: str) -> dict:
     Returns {"title": str, "text": str}.
     Falls back to a template story on any error.
     """
-    import torch
+    from app.config import WAYSIDE_STORY_PROVIDER, WAYSIDE_STORY_MODEL
+    from app.services.providers import parse_story_text
 
+    fallback = _fallback_story(items, theme, place)
+    prompt = _build_prompt(items, theme, place)
+
+    # 1. External providers (no local model loaded into RAM)
+    if WAYSIDE_STORY_PROVIDER in ("hf", "huggingface"):
+        from app.services.providers import call_hf_story
+        raw = call_hf_story(prompt, model=WAYSIDE_STORY_MODEL)
+        parsed = parse_story_text(raw, fallback["title"]) if raw else None
+        return parsed if parsed is not None else fallback
+
+    if WAYSIDE_STORY_PROVIDER in ("openai", "openai-compatible"):
+        from app.services.providers import call_openai_compatible_story
+        raw = call_openai_compatible_story(prompt, model=WAYSIDE_STORY_MODEL)
+        parsed = parse_story_text(raw, fallback["title"]) if raw else None
+        return parsed if parsed is not None else fallback
+
+    if WAYSIDE_STORY_PROVIDER in ("fallback", "mock"):
+        return fallback
+
+    # 2. Local provider (loads transformers model on CPU)
     try:
+        import torch
         tokenizer, model = _load_model()
 
         # Build chat message using model's chat template
