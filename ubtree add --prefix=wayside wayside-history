@@ -1,8 +1,0 @@
-[33m9e210d0[m[33m ([m[1;32mwayside-history[m[33m)[m add configurable AI providers and deployment support
-[33m6b91a98[m feat: add specimen labeling and story generation
-[33m1e2091c[m add detailed stage-by-stage logging for cutout pipeline and lock acquisition
-[33m5bfe5b2[m Lazy-load rembg and set CPUExecutionProvider to fix port scan timeouT
-[33m2ad3f2e[m optimize rembg to u2netp and 800px downscale for 512MB RAM compatibility
-[33mec1ae8e[m Configure container for Render single-service deployment
-[33m8ec7dab[m Background removal with rembg and pre-cached u2net
-[33m448327a[m prototype

@@ -1,1 +1,0 @@
-# Wayside application package

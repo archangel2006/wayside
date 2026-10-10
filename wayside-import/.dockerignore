@@ -1,8 +1,0 @@
-.git
-.venv
-__pycache__
-*.pyc
-docs/screenshots
-tests
-.cache
-.DS_Store
