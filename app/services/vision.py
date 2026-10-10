@@ -1,12 +1,17 @@
 """
 app/services/vision.py
-Real find labeling using a small vision-language model (SmolVLM-256M-Instruct by default).
+Real find labeling using vision providers or a local VLM.
 
-Environment variable:
-  WAYSIDE_VISION_MODEL  Model ID from Hugging Face Hub (default: HuggingFaceTB/SmolVLM-256M-Instruct)
+Environment variables:
+  WAYSIDE_VISION_PROVIDER  Provider: "hf" (free HF API), "hf-router" (paid router),
+                           "openai" (OpenAI-compatible), "fallback", or "local" (default)
+  WAYSIDE_VISION_MODEL     Model ID (used by hf-router / openai providers)
 
 The service is fully lazy-loaded — the model is only instantiated on first request,
 so server startup remains fast.
+
+Provider "hf" uses the free HF Serverless Inference API (image-to-text pipeline)
+— no credits needed. Falls back to caption-based labeling using BLIP or ViT-GPT2.
 
 Output contract:
   {"label": "<2-4 words>", "description": "<one short playful phrase, under 8 words>"}
@@ -43,16 +48,21 @@ def _load_model():
         import torch
         from transformers import AutoProcessor, AutoModelForVision2Seq
 
-        logger.info("[Vision Init] Loading vision model '%s'...", WAYSIDE_VISION_MODEL)
+        logger.info("[Vision Init] Loading vision model '%s' from local cache...", WAYSIDE_VISION_MODEL)
         t0 = time.time()
-        _processor = AutoProcessor.from_pretrained(WAYSIDE_VISION_MODEL)
-        _model = AutoModelForVision2Seq.from_pretrained(
-            WAYSIDE_VISION_MODEL,
-            torch_dtype=torch.float32,
-        )
-        _model.eval()
-        _model_name = WAYSIDE_VISION_MODEL
-        logger.info("[Vision Init Success] Model loaded in %.1fs", time.time() - t0)
+        try:
+            _processor = AutoProcessor.from_pretrained(WAYSIDE_VISION_MODEL, local_files_only=True)
+            _model = AutoModelForVision2Seq.from_pretrained(
+                WAYSIDE_VISION_MODEL,
+                dtype=torch.float32,
+                local_files_only=True,
+            )
+            _model.eval()
+            _model_name = WAYSIDE_VISION_MODEL
+            logger.info("[Vision Init Success] Model loaded in %.1fs", time.time() - t0)
+        except Exception as exc:
+            logger.warning("[Vision Init] Local model '%s' not cached or incomplete (%s). Using fallback.", WAYSIDE_VISION_MODEL, exc)
+            raise
     return _processor, _model
 
 
@@ -97,8 +107,15 @@ def label_image(image: Image.Image) -> dict:
 
     # 1. External providers (no local model loaded into RAM)
     if WAYSIDE_VISION_PROVIDER in ("hf", "huggingface"):
-        from app.services.providers import call_hf_vision
-        res = call_hf_vision(image, model=WAYSIDE_VISION_MODEL)
+        # Free serverless HF pipeline (BLIP / ViT-GPT2) — no credits needed
+        from app.services.providers import call_hf_free_vision
+        res = call_hf_free_vision(image)
+        return res if res is not None else FALLBACK
+
+    if WAYSIDE_VISION_PROVIDER in ("hf-router",):
+        # Paid HF Router — requires credits
+        from app.services.providers import call_hf_router_vision
+        res = call_hf_router_vision(image, model=WAYSIDE_VISION_MODEL)
         return res if res is not None else FALLBACK
 
     if WAYSIDE_VISION_PROVIDER in ("openai", "openai-compatible"):

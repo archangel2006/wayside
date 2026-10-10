@@ -37,16 +37,21 @@ def _load_model():
         import torch
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
-        logger.info("[Story Init] Loading story model '%s'...", WAYSIDE_STORY_MODEL)
+        logger.info("[Story Init] Loading story model '%s' from local cache...", WAYSIDE_STORY_MODEL)
         t0 = time.time()
-        _tokenizer = AutoTokenizer.from_pretrained(WAYSIDE_STORY_MODEL)
-        _model = AutoModelForCausalLM.from_pretrained(
-            WAYSIDE_STORY_MODEL,
-            torch_dtype=torch.float32,
-        )
-        _model.eval()
-        _model_name = WAYSIDE_STORY_MODEL
-        logger.info("[Story Init Success] Model loaded in %.1fs", time.time() - t0)
+        try:
+            _tokenizer = AutoTokenizer.from_pretrained(WAYSIDE_STORY_MODEL, local_files_only=True)
+            _model = AutoModelForCausalLM.from_pretrained(
+                WAYSIDE_STORY_MODEL,
+                dtype=torch.float32,
+                local_files_only=True,
+            )
+            _model.eval()
+            _model_name = WAYSIDE_STORY_MODEL
+            logger.info("[Story Init Success] Model loaded from cache in %.1fs", time.time() - t0)
+        except Exception as exc:
+            logger.warning("[Story Init] Local model '%s' not cached or incomplete (%s). Using fallback.", WAYSIDE_STORY_MODEL, exc)
+            raise
     return _tokenizer, _model
 
 
@@ -109,8 +114,16 @@ def generate_story(items: list, theme: str, place: str) -> dict:
 
     # 1. External providers (no local model loaded into RAM)
     if WAYSIDE_STORY_PROVIDER in ("hf", "huggingface"):
-        from app.services.providers import call_hf_story
-        raw = call_hf_story(prompt, model=WAYSIDE_STORY_MODEL)
+        # Free serverless HF pipeline — no credits needed
+        from app.services.providers import call_hf_free_story
+        raw = call_hf_free_story(prompt)
+        parsed = parse_story_text(raw, fallback["title"]) if raw else None
+        return parsed if parsed is not None else fallback
+
+    if WAYSIDE_STORY_PROVIDER in ("hf-router",):
+        # Paid HF Router — requires credits
+        from app.services.providers import call_hf_router_story
+        raw = call_hf_router_story(prompt, model=WAYSIDE_STORY_MODEL)
         parsed = parse_story_text(raw, fallback["title"]) if raw else None
         return parsed if parsed is not None else fallback
 

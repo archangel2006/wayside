@@ -15,6 +15,10 @@ Design notes:
   - All model inference runs in asyncio.to_thread() so it never blocks the event loop.
   - Lazy model loading: nothing heavy is imported at startup; server binds port instantly.
   - No uploads, images, or story text are stored anywhere on the server.
+  - IMPORTANT: asyncio.wait_for(to_thread(...)) is intentionally NOT used here.
+    Python cannot cancel threads via asyncio — cancelling the future raises CancelledError
+    but the thread keeps running, holding the Lock permanently and breaking all future requests.
+    Timeouts are instead enforced inside the thread via httpx client timeouts (config.MODEL_TIMEOUT_SEC).
 """
 import asyncio
 import logging
@@ -76,15 +80,14 @@ async def health():
 
 @app.post("/api/cutout")
 async def cutout_endpoint(request: Request, file: UploadFile = File(...)):
-    from app.config import MODEL_TIMEOUT_SEC
     t0 = time.time()
     check_rate_limit(request)
     async with acquire_lock(cutout_lock, "cutout"):
         image = await validate_and_load_image(file)
-        png_bytes = await asyncio.wait_for(
-            asyncio.to_thread(remove_background, image),
-            timeout=float(MODEL_TIMEOUT_SEC)
-        )
+        # NOTE: No asyncio.wait_for here — threads can't be safely cancelled.
+        # The rembg ONNX session uses intra_op_num_threads=1 to prevent CPU starvation.
+        # Image is pre-downscaled to ≤800px in cutout.py and ≤1200px in limits.py.
+        png_bytes = await asyncio.to_thread(remove_background, image)
         logger.info("[cutout] done in %.2fs, %d bytes", time.time() - t0, len(png_bytes))
         return Response(content=png_bytes, media_type="image/png")
 
@@ -97,15 +100,12 @@ async def cutout_endpoint(request: Request, file: UploadFile = File(...)):
 
 @app.post("/api/label")
 async def label_endpoint(request: Request, file: UploadFile = File(...)):
-    from app.config import MODEL_TIMEOUT_SEC
     t0 = time.time()
     check_rate_limit(request)
     async with acquire_lock(vision_lock, "vision"):
         image = await validate_and_load_image(file)
-        result = await asyncio.wait_for(
-            asyncio.to_thread(label_image, image),
-            timeout=float(MODEL_TIMEOUT_SEC)
-        )
+        # NOTE: No asyncio.wait_for — timeout enforced inside label_image() via httpx.
+        result = await asyncio.to_thread(label_image, image)
         logger.info("[label] done in %.2fs: %s", time.time() - t0, result)
         return JSONResponse(content=result)
 
@@ -128,7 +128,6 @@ class StoryRequest(BaseModel):
 
 @app.post("/api/story")
 async def story_endpoint(request: Request, body: StoryRequest):
-    from app.config import MODEL_TIMEOUT_SEC
     t0 = time.time()
     check_rate_limit(request)
 
@@ -138,10 +137,8 @@ async def story_endpoint(request: Request, body: StoryRequest):
     place = (body.place or "").strip()[:60]
 
     async with acquire_lock(story_lock, "story"):
-        result = await asyncio.wait_for(
-            asyncio.to_thread(generate_story, items, theme, place),
-            timeout=float(MODEL_TIMEOUT_SEC)
-        )
+        # NOTE: No asyncio.wait_for — timeout enforced inside generate_story() via httpx.
+        result = await asyncio.to_thread(generate_story, items, theme, place)
         logger.info("[story] done in %.2fs", time.time() - t0)
         return JSONResponse(content=result)
 
