@@ -11,8 +11,8 @@ import {cap1} from './state.js';
   MOCK_STORY  = true/false : language model story generation
 */
 export const MOCK_CUTOUT = false;
-export const MOCK_LABEL = true;
-export const MOCK_STORY = true;
+export const MOCK_LABEL = false;
+export const MOCK_STORY = false;
 
 const TIMEOUT_MS = 90000; // free CPU can be slow, and a sleeping Space needs time to wake
 
