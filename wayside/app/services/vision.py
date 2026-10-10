@@ -80,7 +80,7 @@ def label_image(image: Image.Image) -> dict:
     Sends an image to the vision model and returns {label, description}.
     Falls back to FALLBACK on any error.
     """
-    import torch
+    from app.config import WAYSIDE_VISION_PROVIDER, WAYSIDE_VISION_MODEL
 
     # Downscale to max 512px for speed and memory
     max_dim = max(image.size)
@@ -95,7 +95,23 @@ def label_image(image: Image.Image) -> dict:
     if image.mode != "RGB":
         image = image.convert("RGB")
 
+    # 1. External providers (no local model loaded into RAM)
+    if WAYSIDE_VISION_PROVIDER in ("hf", "huggingface"):
+        from app.services.providers import call_hf_vision
+        res = call_hf_vision(image, model=WAYSIDE_VISION_MODEL)
+        return res if res is not None else FALLBACK
+
+    if WAYSIDE_VISION_PROVIDER in ("openai", "openai-compatible"):
+        from app.services.providers import call_openai_compatible_vision
+        res = call_openai_compatible_vision(image, model=WAYSIDE_VISION_MODEL)
+        return res if res is not None else FALLBACK
+
+    if WAYSIDE_VISION_PROVIDER in ("fallback", "mock"):
+        return FALLBACK
+
+    # 2. Local provider (loads transformers model on CPU)
     try:
+        import torch
         processor, model = _load_model()
 
         messages = [
