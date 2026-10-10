@@ -32,6 +32,7 @@ flowchart LR
 ```
 
 ### Architectural Axioms
+
 1. **100% Open-Source & Load-Bearing AI**: No closed APIs (OpenAI, Anthropic, Google Gemini, etc.) even as fallback.
 2. **Stateless Backend**: Server retains 0 user images or stories on disk or in server memory; albums persist strictly in client IndexedDB.
 3. **Public Server Hardening**: Concurrency semaphore (one heavy inference job at a time), per-IP rate limiting, 8MB upload cap, strict Pillow verification, no stack traces leaked.
@@ -42,25 +43,28 @@ flowchart LR
 ## 2. Environment, Credentials & Manual Setup
 
 ### 2.1 Hugging Face Space Configuration
+
 - **Repository Type**: Space
 - **SDK**: `Docker`
 - **Hardware**: Free CPU (2 vCPU, 16 GB RAM)
 - **Port**: `7860` (Configured in README YAML header and Dockerfile)
 
 ### 2.2 Environment Variables & Secrets
+
 While Wayside uses open models with zero cost per photo, the following environment variables configure model selection and avoid Hugging Face Hub anonymous rate limits:
 
-| Variable | Type | Recommended Value | Purpose |
-|---|---|---|---|
-| `HF_TOKEN` | Secret / Optional | `hf_...` (Read token) | Authenticates model weight downloads during Docker build to bypass Hub anonymous rate limits. |
-| `WAYSIDE_VISION_MODEL` | Env Var | `HuggingFaceTB/SmolVLM-256M-Instruct` | Vision-language model for naming & describing finds. |
-| `WAYSIDE_STORY_MODEL` | Env Var | `Qwen/Qwen2.5-1.5B-Instruct` | Language model for stories & challenge prompts. |
-| `WAYSIDE_IMAGE_MODEL` | Env Var | `stabilityai/sd-turbo` | Fast text-to-image diffusion model for story covers. |
-| `MAX_UPLOAD_MB` | Env Var | `8` | Maximum file upload size limit. |
-| `RATE_LIMIT_PER_MINUTE` | Env Var | `30` | Per-client IP rate limiter. |
-| `MODEL_TIMEOUT_SEC` | Env Var | `60` | Maximum inference duration before returning HTTP 504. |
+| Variable                  | Type              | Recommended Value                       | Purpose                                                                                       |
+| ------------------------- | ----------------- | --------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `HF_TOKEN`              | Secret / Optional | `hf_...` (Read token)                 | Authenticates model weight downloads during Docker build to bypass Hub anonymous rate limits. |
+| `WAYSIDE_VISION_MODEL`  | Env Var           | `HuggingFaceTB/SmolVLM-256M-Instruct` | Vision-language model for naming & describing finds.                                          |
+| `WAYSIDE_STORY_MODEL`   | Env Var           | `Qwen/Qwen2.5-1.5B-Instruct`          | Language model for stories & challenge prompts.                                               |
+| `WAYSIDE_IMAGE_MODEL`   | Env Var           | `stabilityai/sd-turbo`                | Fast text-to-image diffusion model for story covers.                                          |
+| `MAX_UPLOAD_MB`         | Env Var           | `8`                                   | Maximum file upload size limit.                                                               |
+| `RATE_LIMIT_PER_MINUTE` | Env Var           | `30`                                  | Per-client IP rate limiter.                                                                   |
+| `MODEL_TIMEOUT_SEC`     | Env Var           | `60`                                  | Maximum inference duration before returning HTTP 504.                                         |
 
 ### 2.3 Local Development Setup
+
 ```bash
 # 1. Clone repository
 git clone <repo-url> wayside
@@ -106,9 +110,11 @@ gantt
 ---
 
 ### Phase 0: Baseline FastAPI Skeleton & Docker Setup ("Deploy First")
+
 **Goal**: Get a working Dockerized FastAPI application running on Hugging Face Spaces that serves the existing static prototype and passes health checks.
 
 #### Detailed Tasks:
+
 1. **Create `requirements.txt`**:
    - `fastapi`, `uvicorn[standard]`, `python-multipart`, `pydantic`, `pillow`.
 2. **Create `app/config.py`**:
@@ -130,9 +136,11 @@ gantt
 ---
 
 ### Phase 1: Background Removal Service (`/api/cutout`) with rembg
+
 **Goal**: Strip photo backgrounds to isolate specimens into transparent PNGs like pinned butterfly specimens.
 
 #### Detailed Tasks:
+
 1. **Dependencies**: Add `rembg[cpu]`, `onnxruntime` to `requirements.txt`.
 2. **Build-Time Weight Pre-Download**:
    - In `Dockerfile`, add `RUN python -c "import rembg; rembg.new_session('u2net')"` to pre-cache the ONNX model into `/home/user/.u2net/u2net.onnx`.
@@ -155,9 +163,11 @@ gantt
 ---
 
 ### Phase 2: Vision Model Find Labeling (`/api/label`) with SmolVLM
+
 **Goal**: Name and describe the photographed find in 2–4 words with a short playful phrase.
 
 #### Detailed Tasks:
+
 1. **Dependencies**: Add `torch` (CPU wheel), `transformers`, `accelerate` to `requirements.txt`.
 2. **Model Choice**: `HuggingFaceTB/SmolVLM-256M-Instruct` (compact ~256M parameters, fast on CPU).
 3. **Build-Time Weight Caching**:
@@ -187,9 +197,11 @@ gantt
 ---
 
 ### Phase 3: Story Generation Service (`/api/story`) with Qwen2.5-1.5B
+
 **Goal**: Generate grounded 90–140 word micro-stories that weave real finds, user notes, theme, and place together.
 
 #### Detailed Tasks:
+
 1. **Model Selection**: `Qwen/Qwen2.5-1.5B-Instruct` (or `HuggingFaceTB/SmolLM2-1.7B-Instruct`).
 2. **Implement `app/services/story.py`**:
    - Input schema validation via Pydantic: `items` (list of `{label, description, note}`), `theme`, `place`.
@@ -218,9 +230,11 @@ gantt
 ---
 
 ### Phase 4: IndexedDB Persistence & Browser Storage Wiring
+
 **Goal**: Ensure walk albums, specimens, and stories survive page reloads and browser restarts without any server-side database.
 
 #### Detailed Tasks:
+
 1. **Refactor `static/js/storage.js`**:
    - Maintain `trips` object store.
    - Convert `blob:` object URLs to native `Blob` objects before storage.
@@ -239,9 +253,11 @@ gantt
 ---
 
 ### Phase 5: Dynamic Observation Challenges (`/api/challenge`)
+
 **Goal**: Deliver contextual one-line walking challenges tailored to time of day and collected finds.
 
 #### Detailed Tasks:
+
 1. **Implement `app/services/challenge.py`**:
    - Accept optional `time_of_day` (morning, afternoon, dusk, night) and `count`.
    - Generate single-sentence prompts under 14 words.
@@ -257,9 +273,11 @@ gantt
 ---
 
 ### Phase 6: Story Cover Generation (`/api/cover`) with SD-Turbo
+
 **Goal**: Generate a soft illustrated cover scene based on story theme, place, and labels (text only, no user photos).
 
 #### Detailed Tasks:
+
 1. **Model Evaluation & License Check**:
    - Check `stabilityai/sd-turbo` or lightweight CPU pipeline (`latent-consistency/lcm-lora-sdv1-5` or small ONNX LCM model).
    - Confirm non-commercial vs open license compatibility for Hacktoberfest submission.
@@ -278,9 +296,11 @@ gantt
 ---
 
 ### Phase 7: Audio Narration & Accessibility Refinement
+
 **Goal**: Allow users to listen to their walk story on the way home.
 
 #### Detailed Tasks:
+
 1. **Evaluate Audio Solutions**:
    - Primary: Browser Web Speech API (`SpeechSynthesis`) with pause, resume, and rate controls in `static/js/voice.js`.
    - Optional Server TTS: `piper-tts` CPU binary if local voice quality requires upgrade.
@@ -293,9 +313,11 @@ gantt
 ---
 
 ### Phase 8: End-to-End Integration, Security Audit & Space Deployment
+
 **Goal**: Full system validation on real devices under real-world network conditions.
 
 #### Detailed Tasks:
+
 1. **Security & Abuse Mitigation Audit (`app/limits.py`)**:
    - Reject uploads $> 8\text{ MB}$.
    - Verify every file with `PIL.Image.open()`.
@@ -319,17 +341,17 @@ gantt
 
 ## 4. Test Files Summary
 
-| Test File | Type | Purpose | Covered Phase |
-|---|---|---|---|
-| `tests/test_health_and_static.py` | Integration | Validates `/api/health` and static frontend file serving. | Phase 0 |
-| `tests/test_cutout.py` | Unit / Service | Verifies `rembg` background removal, RGBA output, and upload size limits. | Phase 1 |
-| `tests/test_vision.py` | Unit / Service | Validates vision model JSON prompt, parser, and fallbacks. | Phase 2 |
-| `tests/test_story.py` | Unit / Service | Tests Qwen2.5 story length, format compliance, and injection defense. | Phase 3 |
-| `tests/test_storage.html` | Browser Unit | Tests IndexedDB object store CRUD and binary Blob persistence. | Phase 4 |
-| `tests/test_challenge.py` | Unit / Service | Validates contextual challenge prompt generator. | Phase 5 |
-| `tests/test_cover.py` | Unit / Service | Validates SD-Turbo cover prompt construction and image output. | Phase 6 |
-| `tests/test_e2e_pipeline.py` | E2E Integration | Tests full backend API pipeline from snap to story and cover. | Phase 8 |
-| `tests/test_security_limits.py` | Security | Verifies rate limits (429), upload caps (413), and queue lock (503). | Phase 8 |
+| Test File                           | Type            | Purpose                                                                    | Covered Phase |
+| ----------------------------------- | --------------- | -------------------------------------------------------------------------- | ------------- |
+| `tests/test_health_and_static.py` | Integration     | Validates`/api/health` and static frontend file serving.                 | Phase 0       |
+| `tests/test_cutout.py`            | Unit / Service  | Verifies`rembg` background removal, RGBA output, and upload size limits. | Phase 1       |
+| `tests/test_vision.py`            | Unit / Service  | Validates vision model JSON prompt, parser, and fallbacks.                 | Phase 2       |
+| `tests/test_story.py`             | Unit / Service  | Tests Qwen2.5 story length, format compliance, and injection defense.      | Phase 3       |
+| `tests/test_storage.html`         | Browser Unit    | Tests IndexedDB object store CRUD and binary Blob persistence.             | Phase 4       |
+| `tests/test_challenge.py`         | Unit / Service  | Validates contextual challenge prompt generator.                           | Phase 5       |
+| `tests/test_cover.py`             | Unit / Service  | Validates SD-Turbo cover prompt construction and image output.             | Phase 6       |
+| `tests/test_e2e_pipeline.py`      | E2E Integration | Tests full backend API pipeline from snap to story and cover.              | Phase 8       |
+| `tests/test_security_limits.py`   | Security        | Verifies rate limits (429), upload caps (413), and queue lock (503).       | Phase 8       |
 
 ---
 
