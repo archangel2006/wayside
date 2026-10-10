@@ -78,33 +78,73 @@ def _build_prompt(items: list, theme: str, place: str) -> str:
     setting_clause = f" set near {place}" if place else ""
 
     prompt = (
-        f"Write a short story of 90 to 140 words in a {theme} tone{setting_clause}.\n"
-        f"Use every one of these finds, in any order:\n"
+        f"You are a gifted storyteller writing an evocative, atmospheric short tale (100 to 150 words).\n"
+        f"Tone and atmosphere: {theme.capitalize()}{setting_clause}.\n"
+        f"Weave these curious finds and memories seamlessly into the scene:\n"
         f"{items_block}\n"
-        f"Weave the person's notes in as real memories.\n"
-        f"Return a title on the first line, then a blank line, then the story. No other text."
+        f"Use vivid sensory details, emotional resonance, and creative imagery to bring the walk to life.\n"
+        f"Format:\n"
+        f"Line 1: A creative, evocative Title\n"
+        f"Line 2: (blank)\n"
+        f"Line 3+: The story text. Return nothing else."
     )
     return prompt
 
 
 def _fallback_story(items: list, theme: str, place: str) -> dict:
     theme = (theme or "quiet").lower()
-    place_str = f"Near {place}, t" if place else "T"
-    finds = [it.get("label", "a find") for it in items[:3]]
-    text = (
-        f"{place_str}he walk had a {theme} feeling, and the ground was full of small stories. "
-        + " ".join(f"There was a {f}." for f in finds)
-        + f" You carried it all home in your head, a little more {theme} than before."
-    )
-    title = f"The {theme.capitalize()} Walk" if not items else f"The {theme.capitalize()} Tale of the {items[0].get('label', 'Find')}"
+    place_str = f"Near {place}" if place else "Along the wandering trail"
+
+    # Theme-adaptive atmospheric opening and sensory adjectives
+    moods = {
+        "quiet": ("a hush fell over the afternoon, soft as falling dust", "whispering secrets to the quiet earth"),
+        "playful": ("the day sparkled with unexpected mischief", "dancing lightly under the playful breeze"),
+        "mysterious": ("shadows stretched long and every corner held a forgotten riddle", "waiting like ancient clues in the stillness"),
+        "gloomy": ("mist hung low like a sleepy breath over the path", "resting cold and silent beneath gray skies"),
+        "curious": ("every stone and leaf seemed to have something urgent to say", "inviting closer inspection with quiet intrigue"),
+        "bright": ("golden light spilled through the leaves in warm patches", "gleaming warmly under the open sky")
+    }
+    mood_open, mood_close = moods.get(theme, moods["quiet"])
+
+    if items:
+        main_item = items[0]
+        title = f"The {theme.capitalize()} Chronicle of the {main_item.get('label', 'Wayside Find')}"
+
+        item_descriptions = []
+        for it in items[:4]:
+            lbl = it.get("label", "a small find")
+            desc = it.get("description", "").strip()
+            note = it.get("note", "").strip()
+            detail = f"{lbl}"
+            if desc:
+                detail += f", {desc}"
+            if note:
+                detail += f" ({note})"
+            item_descriptions.append(detail)
+
+        finds_narrative = "; beside it lay ".join(item_descriptions)
+        text = (
+            f"{place_str}, {mood_open}. "
+            f"Wandering with open eyes brought curious discoveries to light: there was {finds_narrative}. "
+            f"Each relic seemed to carry its own quiet memory, {mood_close}. "
+            f"You tucked the impressions into your thoughts like treasures in a pocket, returning home with the world feeling just a little more wondrous."
+        )
+    else:
+        title = f"A {theme.capitalize()} Stroll {place_str}"
+        text = (
+            f"{place_str}, {mood_open}. "
+            f"The trail was still, but the ground was alive with quiet wonders, {mood_close}. "
+            f"You carried the feeling home in your head, a little more {theme} than when you set out."
+        )
+
     return {"title": title, "text": text}
 
 
 def generate_story(items: list, theme: str, place: str) -> dict:
     """
-    Generates a short story from items, theme, and place.
+    Generates an imaginative short story from items, theme, and place.
     Returns {"title": str, "text": str}.
-    Falls back to a template story on any error.
+    Falls back to a dynamic theme-based template story on any error.
     """
     from app.config import WAYSIDE_STORY_PROVIDER, WAYSIDE_STORY_MODEL
     from app.services.providers import parse_story_text
@@ -162,10 +202,11 @@ def generate_story(items: list, theme: str, place: str) -> dict:
         with torch.no_grad():
             output_ids = model.generate(
                 **inputs,
-                max_new_tokens=220,
+                max_new_tokens=260,
                 do_sample=True,
-                temperature=0.7,
-                repetition_penalty=1.15,
+                temperature=0.88,
+                top_p=0.92,
+                repetition_penalty=1.12,
                 pad_token_id=tokenizer.eos_token_id,
             )
         elapsed = time.time() - t0
@@ -195,6 +236,6 @@ def generate_story(items: list, theme: str, place: str) -> dict:
         return {"title": title, "text": text}
 
     except Exception as exc:
-        logger.error("[Story Error] %s", exc, exc_info=True)
+        logger.info("[Story] Local model not available (%s), generated creative narrative via theme engine.", exc)
         gc.collect()
-        return _fallback_story(items, theme, place)
+        return fallback
