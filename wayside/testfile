@@ -1,0 +1,8 @@
+# Work and commit inside the standalone project repo
+git add .
+git commit -m "Implement feature"
+git push origin main
+
+# From the central repo, incorporate the project's history
+git subtree pull --prefix=wayside <project-remote> main
+git push origin main
