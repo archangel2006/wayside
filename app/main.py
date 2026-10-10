@@ -76,11 +76,15 @@ async def health():
 
 @app.post("/api/cutout")
 async def cutout_endpoint(request: Request, file: UploadFile = File(...)):
+    from app.config import MODEL_TIMEOUT_SEC
     t0 = time.time()
     check_rate_limit(request)
     async with acquire_lock(cutout_lock, "cutout"):
         image = await validate_and_load_image(file)
-        png_bytes = await asyncio.to_thread(remove_background, image)
+        png_bytes = await asyncio.wait_for(
+            asyncio.to_thread(remove_background, image),
+            timeout=float(MODEL_TIMEOUT_SEC)
+        )
         logger.info("[cutout] done in %.2fs, %d bytes", time.time() - t0, len(png_bytes))
         return Response(content=png_bytes, media_type="image/png")
 
@@ -93,11 +97,15 @@ async def cutout_endpoint(request: Request, file: UploadFile = File(...)):
 
 @app.post("/api/label")
 async def label_endpoint(request: Request, file: UploadFile = File(...)):
+    from app.config import MODEL_TIMEOUT_SEC
     t0 = time.time()
     check_rate_limit(request)
     async with acquire_lock(vision_lock, "vision"):
         image = await validate_and_load_image(file)
-        result = await asyncio.to_thread(label_image, image)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(label_image, image),
+            timeout=float(MODEL_TIMEOUT_SEC)
+        )
         logger.info("[label] done in %.2fs: %s", time.time() - t0, result)
         return JSONResponse(content=result)
 
@@ -120,6 +128,7 @@ class StoryRequest(BaseModel):
 
 @app.post("/api/story")
 async def story_endpoint(request: Request, body: StoryRequest):
+    from app.config import MODEL_TIMEOUT_SEC
     t0 = time.time()
     check_rate_limit(request)
 
@@ -129,7 +138,10 @@ async def story_endpoint(request: Request, body: StoryRequest):
     place = (body.place or "").strip()[:60]
 
     async with acquire_lock(story_lock, "story"):
-        result = await asyncio.to_thread(generate_story, items, theme, place)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(generate_story, items, theme, place),
+            timeout=float(MODEL_TIMEOUT_SEC)
+        )
         logger.info("[story] done in %.2fs", time.time() - t0)
         return JSONResponse(content=result)
 

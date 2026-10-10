@@ -102,8 +102,8 @@ def call_hf_vision(image: Image.Image, model: str = WAYSIDE_VISION_MODEL) -> Opt
     if HF_TOKEN:
         headers["Authorization"] = f"Bearer {HF_TOKEN}"
 
-    # Try standard HF chat completions endpoint
-    url = "https://api-inference.huggingface.co/v1/chat/completions"
+    # Use modern Hugging Face Router endpoint
+    url = "https://router.huggingface.co/v1/chat/completions"
     payload = {
         "model": model,
         "messages": [
@@ -126,6 +126,11 @@ def call_hf_vision(image: Image.Image, model: str = WAYSIDE_VISION_MODEL) -> Opt
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
                 return parse_label_json(content)
+            elif resp.status_code == 403:
+                logger.error(
+                    "[HF Vision Auth Error] HTTP 403: Token lacks 'Inference Providers' permissions. "
+                    "In Hugging Face Settings -> Access Tokens, create a 'Read' token or enable 'Make calls to Inference Providers'."
+                )
             else:
                 logger.warning("[HF Vision API] HTTP %s: %s", resp.status_code, resp.text[:200])
     except Exception as exc:
@@ -179,8 +184,8 @@ def call_hf_story(prompt: str, model: str = WAYSIDE_STORY_MODEL) -> Optional[str
     if HF_TOKEN:
         headers["Authorization"] = f"Bearer {HF_TOKEN}"
 
-    # Try chat completions endpoint first
-    url = "https://api-inference.huggingface.co/v1/chat/completions"
+    # Use modern Hugging Face Router endpoint
+    url = "https://router.huggingface.co/v1/chat/completions"
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
@@ -194,6 +199,11 @@ def call_hf_story(prompt: str, model: str = WAYSIDE_STORY_MODEL) -> Optional[str
             if resp.status_code == 200:
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
+            elif resp.status_code == 403:
+                logger.error(
+                    "[HF Story Auth Error] HTTP 403: Token lacks 'Inference Providers' permissions. "
+                    "In Hugging Face Settings -> Access Tokens, create a 'Read' token or enable 'Make calls to Inference Providers'."
+                )
             
             # Fallback to model-specific endpoint
             model_url = f"{HF_API_BASE.rstrip('/')}/{model}"
@@ -207,7 +217,7 @@ def call_hf_story(prompt: str, model: str = WAYSIDE_STORY_MODEL) -> Optional[str
                 if isinstance(data2, list) and len(data2) > 0:
                     return data2[0].get("generated_text", "")
             else:
-                logger.warning("[HF Story API] HTTP %s: %s", resp.status_code, resp.text[:200])
+                logger.warning("[HF Story API] HTTP %s: %s", resp2.status_code, resp2.text[:200])
     except Exception as exc:
         logger.error("[HF Story API Error] %s", exc)
 

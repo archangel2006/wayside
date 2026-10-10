@@ -7,7 +7,7 @@ WAYSIDE_VISION_MODEL = os.getenv("WAYSIDE_VISION_MODEL", "HuggingFaceTB/SmolVLM-
 WAYSIDE_STORY_MODEL = os.getenv("WAYSIDE_STORY_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")
 
 HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_KEY", "")
-HF_API_BASE = os.getenv("HF_API_BASE", "https://api-inference.huggingface.co/models")
+HF_API_BASE = os.getenv("HF_API_BASE", "https://router.huggingface.co/hf-inference/models")
 
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

@@ -10,17 +10,21 @@ _cutout_session = None
 
 def get_cutout_session():
     """
-    Lazily load and cache the rembg u2netp session.
-    Using providers=['CPUExecutionProvider'] disables GPU device scanning.
-    Lazy-loading ensures the server boots and binds port 10000 instantly (<1s).
+    Lazily load and cache the rembg u2netp session with single-threaded,
+    non-spinning ONNX SessionOptions to prevent CPU starvation on restricted containers (e.g. Render).
     """
     global _cutout_session
     if _cutout_session is None:
         logger.info("[Session Init] Initializing rembg session for u2netp (CPUExecutionProvider)...")
         t0 = time.time()
-        import rembg
         try:
-            _cutout_session = rembg.new_session("u2netp", providers=["CPUExecutionProvider"])
+            import onnxruntime as ort
+            from rembg.sessions.u2netp import U2netpSession
+            sess_opts = ort.SessionOptions()
+            sess_opts.intra_op_num_threads = 1
+            sess_opts.inter_op_num_threads = 1
+            sess_opts.add_session_config_entry("session.intra_op.allow_spinning", "0")
+            _cutout_session = U2netpSession("u2netp", sess_opts, providers=["CPUExecutionProvider"])
             logger.info("[Session Init Success] rembg u2netp session loaded in %.2fs", time.time() - t0)
         except Exception as exc:
             logger.error("[Session Init Failed] Could not initialize rembg session: %s", exc, exc_info=True)
@@ -41,7 +45,7 @@ def remove_background(image: Image.Image) -> bytes:
         scale = 800.0 / max_dim
         new_size = (int(image.width * scale), int(image.height * scale))
         logger.info("[Cutout Preprocess] Downscaling image from %s to %s", original_size, new_size)
-        image = image.resize(new_size, Image.Resampling.LANCZOS)
+        image = image.resize(new_size, Image.Resampling.BILINEAR)
     else:
         logger.info("[Cutout Preprocess] Image size %s within 800px threshold", original_size)
 

@@ -55,23 +55,30 @@ def check_rate_limit(request: Request):
 
 
 @asynccontextmanager
-async def acquire_lock(lock: asyncio.Lock, name: str):
-    """Acquire a named model lock. Returns HTTP 503 if already in use."""
-    if lock.locked():
-        logger.warning("[Lock Rejection] %s lock busy", name)
+async def acquire_lock(lock: asyncio.Lock, name: str, timeout: float = 15.0):
+    """
+    Acquire a named model lock. Waits up to `timeout` seconds before rejecting with HTTP 503.
+    This prevents instant 503s when brief concurrent requests arrive.
+    """
+    try:
+        await asyncio.wait_for(lock.acquire(), timeout=timeout)
+    except asyncio.TimeoutError:
+        logger.warning("[Lock Rejection] %s lock busy after %.1fs timeout", name, timeout)
         raise HTTPException(status_code=503, detail="The server is busy. Try again in a moment.")
-    async with lock:
-        logger.info("[Lock] %s acquired", name)
-        try:
-            yield
-        finally:
-            logger.info("[Lock] %s released", name)
+    
+    logger.info("[Lock] %s acquired", name)
+    try:
+        yield
+    finally:
+        lock.release()
+        logger.info("[Lock] %s released", name)
 
 
 async def validate_and_load_image(file: UploadFile) -> Image.Image:
     """
     Validates file size (max 8MB), verifies it is a real image with Pillow,
-    applies EXIF orientation correction, and returns a Pillow Image.
+    applies EXIF orientation correction, downscales raw camera photos > 1200px to save RAM,
+    and returns a Pillow Image.
     """
     logger.info("[Image Load] Reading '%s' (content-type: %s)...", file.filename, file.content_type)
     content = await file.read(MAX_UPLOAD_BYTES + 1)
@@ -89,8 +96,21 @@ async def validate_and_load_image(file: UploadFile) -> Image.Image:
         image.load()
         if image.mode not in ("RGB", "RGBA"):
             image = image.convert("RGB")
+
+        # Guard against raw phone camera 12-48MP images exhausting memory
+        max_dim = max(image.size)
+        if max_dim > 1200:
+            scale = 1200.0 / max_dim
+            image = image.resize(
+                (int(image.width * scale), int(image.height * scale)),
+                Image.Resampling.BILINEAR
+            )
+            logger.info("[Image Load Rescaled] Downscaled camera photo from %dpx to %s", max_dim, image.size)
+
         logger.info("[Image Load OK] size=%s, mode=%s", image.size, image.mode)
         return image
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("[Image Load Failed] Pillow error: %s", exc)
         raise HTTPException(status_code=400, detail="Please upload a valid image (JPEG, PNG, or WEBP).")
