@@ -1,8 +1,7 @@
 import os
 
 WAYSIDE_VISION_MODEL = os.getenv("WAYSIDE_VISION_MODEL", "HuggingFaceTB/SmolVLM-256M-Instruct")
-WAYSIDE_STORY_MODEL = os.getenv("WAYSIDE_STORY_MODEL", "Qwen/Qwen2.5-1.5B-Instruct")
-WAYSIDE_IMAGE_MODEL = os.getenv("WAYSIDE_IMAGE_MODEL", "stabilityai/sd-turbo")
+WAYSIDE_STORY_MODEL = os.getenv("WAYSIDE_STORY_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")
 
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "8"))
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024

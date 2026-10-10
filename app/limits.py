@@ -1,3 +1,15 @@
+"""
+app/limits.py
+Public-server safety: upload validation, per-IP rate limiting, per-model concurrency lock.
+
+Key design decisions:
+- Each model type has its own asyncio.Lock so that /api/cutout and /api/label
+  can run truly concurrently when the browser sends them in parallel (Promise.all).
+  A single global lock would serialize them and double latency for every snap.
+- HTTPExceptions raised here propagate cleanly to FastAPI's exception handler.
+- EXIF transpose is applied before any model sees the image.
+- Rate limit uses X-Forwarded-For (Render's reverse proxy sets this).
+"""
 import asyncio
 import io
 import logging
@@ -13,8 +25,10 @@ from app.config import MAX_UPLOAD_BYTES, RATE_LIMIT_PER_MIN
 
 logger = logging.getLogger("wayside.limits")
 
-# Global model inference lock (one heavy inference job at a time on free CPU)
-model_lock = asyncio.Lock()
+# Separate locks per model type so /api/cutout + /api/label can run in parallel
+cutout_lock = asyncio.Lock()
+vision_lock = asyncio.Lock()
+story_lock = asyncio.Lock()
 
 # Simple sliding window rate limiter by client IP
 ip_request_timestamps: Dict[str, List[float]] = defaultdict(list)
@@ -31,74 +45,52 @@ def check_rate_limit(request: Request):
     now = time.time()
     cutoff = now - 60.0
 
-    # Clean timestamps older than 60s
     timestamps = [ts for ts in ip_request_timestamps[client_ip] if ts > cutoff]
     timestamps.append(now)
     ip_request_timestamps[client_ip] = timestamps
 
     if len(timestamps) > RATE_LIMIT_PER_MIN:
-        logger.warning("Rate limit exceeded for IP %s (%d requests in last 60s)", client_ip, len(timestamps))
-        raise HTTPException(
-            status_code=429,
-            detail="Slow down a little, then try again."
-        )
+        logger.warning("Rate limit exceeded for IP %s (%d req/60s)", client_ip, len(timestamps))
+        raise HTTPException(status_code=429, detail="Slow down a little, then try again.")
 
 
 @asynccontextmanager
-async def acquire_model_slot():
-    """Ensures only one model job runs at a time. Returns 503 if busy."""
-    is_locked = model_lock.locked()
-    logger.info("[Lock Check] Checking model lock. Currently locked: %s", is_locked)
-    if is_locked:
-        logger.warning("[Lock Rejection] Model lock is busy! Rejecting request with HTTP 503.")
-        raise HTTPException(
-            status_code=503,
-            detail="The server is busy. Try again in a moment."
-        )
-    logger.info("[Lock Acquire] Acquiring model lock...")
-    async with model_lock:
-        logger.info("[Lock Acquired] Model lock acquired successfully.")
+async def acquire_lock(lock: asyncio.Lock, name: str):
+    """Acquire a named model lock. Returns HTTP 503 if already in use."""
+    if lock.locked():
+        logger.warning("[Lock Rejection] %s lock busy", name)
+        raise HTTPException(status_code=503, detail="The server is busy. Try again in a moment.")
+    async with lock:
+        logger.info("[Lock] %s acquired", name)
         try:
             yield
         finally:
-            logger.info("[Lock Released] Model lock released.")
+            logger.info("[Lock] %s released", name)
 
 
 async def validate_and_load_image(file: UploadFile) -> Image.Image:
     """
-    Validates file size (max 8MB), ensures valid image format,
-    applies ImageOps.exif_transpose for phone camera orientation,
-    and returns a Pillow Image.
+    Validates file size (max 8MB), verifies it is a real image with Pillow,
+    applies EXIF orientation correction, and returns a Pillow Image.
     """
-    logger.info("[Image Load] Reading uploaded file '%s' (content-type: %s)...", file.filename, file.content_type)
+    logger.info("[Image Load] Reading '%s' (content-type: %s)...", file.filename, file.content_type)
     content = await file.read(MAX_UPLOAD_BYTES + 1)
+
     if len(content) > MAX_UPLOAD_BYTES:
-        logger.warning("[Image Load Failed] File exceeds %d bytes (got %d bytes)", MAX_UPLOAD_BYTES, len(content))
-        raise HTTPException(
-            status_code=400,
-            detail="Image is too large. Maximum size is 8MB."
-        )
+        logger.warning("[Image Load Failed] %d bytes > %d byte limit", len(content), MAX_UPLOAD_BYTES)
+        raise HTTPException(status_code=400, detail="Image is too large. Maximum size is 8MB.")
 
     if not content:
-        logger.warning("[Image Load Failed] Uploaded file is empty.")
-        raise HTTPException(
-            status_code=400,
-            detail="Uploaded file is empty."
-        )
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    logger.info("[Image Load] Read %d bytes. Verifying format with Pillow...", len(content))
     try:
         image = Image.open(io.BytesIO(content))
-        # Correct mobile phone EXIF orientation before any processing
         image = ImageOps.exif_transpose(image)
         image.load()
-        if image.format not in ("JPEG", "PNG", "WEBP"):
+        if image.mode not in ("RGB", "RGBA"):
             image = image.convert("RGB")
-        logger.info("[Image Load Success] Image verified: size=%s, format=%s, mode=%s", image.size, image.format, image.mode)
+        logger.info("[Image Load OK] size=%s, mode=%s", image.size, image.mode)
         return image
     except Exception as exc:
-        logger.error("[Image Load Failed] Pillow validation failed: %s", exc, exc_info=True)
-        raise HTTPException(
-            status_code=400,
-            detail="Please upload a valid image (JPEG, PNG, or WEBP)."
-        )
+        logger.error("[Image Load Failed] Pillow error: %s", exc)
+        raise HTTPException(status_code=400, detail="Please upload a valid image (JPEG, PNG, or WEBP).")
