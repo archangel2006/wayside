@@ -23,9 +23,9 @@ COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --user -r requirements.txt
 
-# Pre-download u2net model into U2NET_HOME so nothing downloads at startup
+# Pre-download u2netp model into U2NET_HOME so nothing downloads at startup
 RUN mkdir -p $U2NET_HOME && \
-    python -c "import rembg; rembg.new_session('u2net')"
+    python -c "import rembg; rembg.new_session('u2netp')"
 
 # Copy application files
 COPY --chown=user:user . .
