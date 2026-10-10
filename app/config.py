@@ -9,3 +9,4 @@ MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 
 RATE_LIMIT_PER_MIN = int(os.getenv("RATE_LIMIT_PER_MIN", "30"))
 MODEL_TIMEOUT_SEC = int(os.getenv("MODEL_TIMEOUT_SEC", "90"))
+PORT = int(os.getenv("PORT", "7860"))
