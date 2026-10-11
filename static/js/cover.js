@@ -63,13 +63,16 @@ export function coverPrompt(s){
 }
 
 export function coverHTML(s){
-  if(s._busy)return '<div class="cover ph" role="status">Composing your scrapbook cover…</div>';
+  if(s._busy)return '<div class="cover ph" role="status">Painting your cover…</div>';
   if(!s.cover)return '';
-  return `<img class="cover" src="${s.cover}" alt="Cover for ${esc(s.title)}"><div class="cover-note">Scrapbook field cover crafted from your walk's finds.</div>`;
+  const note = s.coverPrompt
+    ? `<div class="cover-note">Painted from this scene: <em>${esc(s.coverPrompt)}</em></div>`
+    : `<div class="cover-note">Cover painted by SD-Turbo from your story's finds.</div>`;
+  return `<img class="cover" src="${s.cover}" alt="Cover for ${esc(s.title)}">${note}`;
 }
 
 export function coverBtn(s){
-  return `<button class="btn ghost sm" data-cover ${s._busy?'disabled':''}><span class="ico">${ICON.image}</span><span class="lbl">${s._busy?'Composing…':s.cover?'New cover':'Make cover'}</span></button>`;
+  return `<button class="btn ghost sm" data-cover ${s._busy?'disabled':''}><span class="ico">${ICON.image}</span><span class="lbl">${s._busy?'Painting…':s.cover?'New cover':'Make cover'}</span></button>`;
 }
 
 export async function drawCover(s,seed,items=[]){

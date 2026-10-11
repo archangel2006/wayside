@@ -118,14 +118,33 @@ It must be about looking, not about a phone. One sentence, under 14 words, no qu
 {optional context: time of day, finds so far}
 ```
 
-**Cover (text-to-image).** Text only, no user photos.
+**Cover (two-step, text-to-image).**
+
+`POST /api/cover` takes `{title, text, theme, place, labels}` and returns `{"image": "<base64 PNG>", "scene": "<one-sentence scene description>"}`.
+
+Step A — the story model (already loaded for `/api/story`, no second copy) reads the finished story and the names of the found objects and writes a one-sentence visual scene. Prompt:
 
 ```
-A soft illustrated cover for a short {theme} story, set near {place}.
-Hints of: {labels}. Gentle colors, simple shapes, no text.
+Read this short story and the list of objects the person found. Describe ONE key scene from the story
+as a picture, in one sentence of at most 28 words. The scene must clearly show these objects in the
+foreground: {labels}. Use concrete visual details: setting, light, weather, mood. People may appear
+but must be seen from behind or far away, never as a close-up.
+Do not mention faces, eyes or portraits. No text, no names. Reply with the sentence only.
 ```
 
-Use a negative prompt such as "text, letters, watermark, faces". Turbo-style models use very few steps and little or no guidance, so follow the model card. The frontend builds the same prompt string for display, so keep the two in sync. The cover is a generated scene. It does **not** contain the user's actual specimens, and no copy may imply that it does.
+Settings: `max_new_tokens=50`, `temperature=0.5`. Clean the output: strip quotes and newlines, take the first sentence, cap at 200 characters, remove the words: face, faces, eyes, portrait, close-up, closeup, smile, smiling. If empty or Step A fails, fall back to: `"{labels}, in a quiet {theme} scene[ near {place}]."`.
+
+Step B — `stabilityai/sd-turbo` via `diffusers.AutoPipelineForText2Image` (env var `WAYSIDE_IMAGE_MODEL`). Device: CUDA if available (float16, variant="fp16"), else CPU (float32, no variant). Image prompt exactly:
+
+```
+{scene}. Richly detailed watercolor storybook illustration, soft golden light, warm painterly colors, delicate textures, no text.
+```
+
+The CLIP text encoder reads approximately 77 tokens. Keep the full prompt under approximately 60 words; truncate the scene to 220 characters if needed. Call: `num_inference_steps=int(WAYSIDE_IMAGE_STEPS, default 2)`, `guidance_scale=0.0`, `height=512`, `width=512`. Do NOT pass a negative prompt (sd-turbo ignores it). Load the pipeline lazily on the first request and cache it. Run in a thread under `cover_lock` (one job at a time). Timeout 120 seconds. On timeout or error return a short, friendly JSON error.
+
+**Licence note:** SD-Turbo is released by Stability AI as a research artifact. The weights are open, but it is not an OSI open-source licence. Check Stability AI's licence before any commercial use.
+
+**Honesty clause:** The cover is a generated scene that includes the kinds of objects found on the walk. It is **not** a picture of the user's actual specimens, and small image models draw specific objects approximately. Do not use copy that implies the cover shows the user's real photos. Conditioning on the real cutouts (img2img or IP-Adapter) stays under Future scope.
 
 ## Frontend conventions
 

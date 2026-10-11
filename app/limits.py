@@ -29,6 +29,7 @@ logger = logging.getLogger("wayside.limits")
 cutout_lock = asyncio.Lock()
 vision_lock = asyncio.Lock()
 story_lock = asyncio.Lock()
+cover_lock = asyncio.Lock()
 
 # Simple sliding window rate limiter by client IP
 ip_request_timestamps: Dict[str, List[float]] = defaultdict(list)

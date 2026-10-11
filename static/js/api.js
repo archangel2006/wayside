@@ -1,5 +1,4 @@
 import {SAMPLES} from './art.js';
-import {coverPrompt, drawCover, hash} from './cover.js';
 import {cap1} from './state.js';
 
 /*
@@ -13,6 +12,7 @@ import {cap1} from './state.js';
 export const MOCK_CUTOUT = false;
 export const MOCK_LABEL = false;
 export const MOCK_STORY = false;
+export const MOCK_COVER = false;
 
 const TIMEOUT_MS = 90000; // free CPU can be slow, and a sleeping Space needs time to wake
 
@@ -110,14 +110,33 @@ export async function writeStory({items, theme, place}){
   };
 }
 
-/* A story in, a cover image out: { cover (data URL), prompt }. Uses scrapbook collage painter. */
+/* A story in, a cover image out: { cover: "data:image/png;base64,...", prompt: scene }.
+   Calls POST /api/cover — Step A: story model writes a visual scene sentence;
+   Step B: SD-Turbo paints it. Falls back to canvas collage on any server error. */
 export async function coverImage(story, items = []){
-  const prompt = coverPrompt(story);
-  const itemsToUse = (items && items.length) ? items : (story.items || []);
-  await sleep(400);
-  story.seed = (story.seed || 0) + 1;
-  const cover = await drawCover(story, story.seed * 7919 + hash(story.title), itemsToUse);
-  return {cover, prompt};
+  if(MOCK_COVER){
+    // Lightweight canvas fallback used while mock mode is on
+    const {drawCover, hash, coverPrompt} = await import('./cover.js');
+    const seed = ((story.seed||0) + 1) * 7919 + hash(story.title);
+    story.seed = (story.seed||0) + 1;
+    const cover = await drawCover(story, seed, items.length ? items : (story.items||[]));
+    return {cover, prompt: coverPrompt(story)};
+  }
+
+  const labels = (story.labels || items.map(i => i.label) || []).slice(0, 4);
+  const body = {
+    title: story.title || '',
+    text: story.text || '',
+    theme: story.theme || 'quiet',
+    place: story.place || '',
+    labels
+  };
+
+  const res = await postJson('/api/cover', body);
+  const out = await res.json();
+  if(!out.image) throw new Error('Cover generation returned no image.');
+  const cover = 'data:image/png;base64,' + out.image;
+  return {cover, prompt: out.scene || ''};
 }
 
 /* Mock story writer. Used while MOCK_STORY is true. */

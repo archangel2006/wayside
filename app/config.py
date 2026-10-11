@@ -8,6 +8,10 @@ WAYSIDE_VISION_MODEL = os.getenv("WAYSIDE_VISION_MODEL", "HuggingFaceTB/SmolVLM-
 # Story model (local: Qwen2.5-0.5B; hf-free pipeline uses Falconsai/text_summarization or similar)
 WAYSIDE_STORY_MODEL = os.getenv("WAYSIDE_STORY_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")
 
+# Cover image model (SD-Turbo) and inference steps
+WAYSIDE_IMAGE_MODEL = os.getenv("WAYSIDE_IMAGE_MODEL", "stabilityai/sd-turbo")
+WAYSIDE_IMAGE_STEPS = int(os.getenv("WAYSIDE_IMAGE_STEPS", "2"))
+
 # HF token (needed for rate-limit bump on free serverless API; optional but recommended)
 HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_KEY", "")
 

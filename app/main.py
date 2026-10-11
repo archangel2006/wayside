@@ -34,6 +34,7 @@ from pydantic import BaseModel
 from app.limits import (
     acquire_lock,
     check_rate_limit,
+    cover_lock,
     cutout_lock,
     story_lock,
     validate_and_load_image,
@@ -42,6 +43,7 @@ from app.limits import (
 from app.services.cutout import remove_background
 from app.services.vision import label_image
 from app.services.story import generate_story
+from app.services.cover import generate_cover
 
 logging.basicConfig(
     level=logging.INFO,
@@ -140,6 +142,46 @@ async def story_endpoint(request: Request, body: StoryRequest):
         # NOTE: No asyncio.wait_for — timeout enforced inside generate_story() via httpx.
         result = await asyncio.to_thread(generate_story, items, theme, place)
         logger.info("[story] done in %.2fs", time.time() - t0)
+        return JSONResponse(content=result)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/cover
+# Input:  {"title": str, "text": str, "theme": str, "place": str, "labels": [str]}
+# Output: {"image": "<base64 PNG>", "scene": "<one-sentence scene description>"}
+# Step A: story model writes a 1-sentence visual scene from the story.
+# Step B: SD-Turbo paints the scene as a 512x512 PNG.
+# ---------------------------------------------------------------------------
+
+class CoverRequest(BaseModel):
+    title: str = ""
+    text: str = ""
+    theme: Optional[str] = "quiet"
+    place: Optional[str] = ""
+    labels: List[str] = []
+
+@app.post("/api/cover")
+async def cover_endpoint(request: Request, body: CoverRequest):
+    t0 = time.time()
+    check_rate_limit(request)
+
+    # Cap inputs
+    title = (body.title or "").strip()[:120]
+    text = (body.text or "").strip()[:1400]
+    theme = (body.theme or "quiet").strip()[:40]
+    place = (body.place or "").strip()[:60]
+    labels = [str(l).strip()[:60] for l in (body.labels or [])[:4]]
+
+    async with acquire_lock(cover_lock, "cover", timeout=130.0):
+        try:
+            result = await asyncio.to_thread(generate_cover, title, text, theme, place, labels)
+        except Exception as exc:
+            logger.warning("[cover] failed: %s", exc)
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Cover generation did not work out. Try again."},
+            )
+        logger.info("[cover] done in %.2fs", time.time() - t0)
         return JSONResponse(content=result)
 
 
