@@ -1,5 +1,5 @@
 /* A walk: specimen grid, story builder, story vault, covers. */
-import * as api from '../api.js';
+import * as api from '../api.js?v=2';
 import {$, esc, state, toast, tripById} from '../state.js';
 import {bindBoxes, boxHTML} from '../components.js';
 import {STORY_THEMES} from '../data.js';

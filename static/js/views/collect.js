@@ -1,5 +1,5 @@
 /* Collect page: challenge, shutter, this walk, end walk. */
-import * as api from '../api.js';
+import * as api from '../api.js?v=2';
 import {$, esc, state, toast} from '../state.js';
 import {PROMPTS} from '../data.js';
 import {bindBoxes, boxHTML, closeSheet, sheet} from '../components.js';

@@ -29,6 +29,8 @@ from typing import List, Optional
 from fastapi import FastAPI, File, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.staticfiles import StaticFiles as StarletteStatic
+from starlette.responses import FileResponse
 from pydantic import BaseModel
 
 from app.limits import (
@@ -186,10 +188,26 @@ async def cover_endpoint(request: Request, body: CoverRequest):
 
 
 # ---------------------------------------------------------------------------
-# Static frontend
+# Static frontend (with no-cache for JS/CSS so edits are always picked up)
 # ---------------------------------------------------------------------------
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
 
+class NoCacheStaticFiles(StarletteStatic):
+    """StaticFiles that adds Cache-Control: no-cache for JS and CSS files
+    so browsers always revalidate them. Other assets (images, fonts) get a
+    short 1-hour max-age to avoid hammering the server on every refresh."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if isinstance(response, FileResponse):
+            lower = path.lower()
+            if lower.endswith(".js") or lower.endswith(".css"):
+                response.headers["Cache-Control"] = "no-cache, must-revalidate"
+            else:
+                response.headers["Cache-Control"] = "public, max-age=3600"
+        return response
+
+
 if os.path.isdir(STATIC_DIR):
-    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+    app.mount("/", NoCacheStaticFiles(directory=STATIC_DIR, html=True), name="static")

@@ -14,14 +14,15 @@ export const MOCK_LABEL = false;
 export const MOCK_STORY = false;
 export const MOCK_COVER = false;
 
-const TIMEOUT_MS = 90000; // free CPU can be slow, and a sleeping Space needs time to wake
+const TIMEOUT_FAST_MS  =  90_000; // cutout + label: fast enough on CPU
+const TIMEOUT_STORY_MS = 300_000; // story inference on CPU can take 2-3 min
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let mockCount = 0;
 
-async function request(path, options){
+async function request(path, options, timeoutMs = TIMEOUT_FAST_MS){
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try{
     const res = await fetch(path, {...options, signal: ctrl.signal});
     if(res.status === 503) throw new Error('The server is busy. Try again in a moment.');
@@ -37,14 +38,14 @@ async function request(path, options){
   }
 }
 
-function postFile(path, file){
+function postFile(path, file, timeoutMs){
   const body = new FormData();
   body.append('file', file);
-  return request(path, {method: 'POST', body});
+  return request(path, {method: 'POST', body}, timeoutMs);
 }
 
-function postJson(path, data){
-  return request(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+function postJson(path, data, timeoutMs){
+  return request(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)}, timeoutMs);
 }
 
 const blobToDataUrl = blob => new Promise((ok, fail) => {
@@ -98,7 +99,7 @@ export async function writeStory({items, theme, place}){
     items: items.map(i => ({label: i.label, description: i.desc, note: i.note})),
     theme,
     place
-  });
+  }, TIMEOUT_STORY_MS);
   const out = await res.json();
   return {
     title: out.title,
@@ -132,7 +133,7 @@ export async function coverImage(story, items = []){
     labels
   };
 
-  const res = await postJson('/api/cover', body);
+  const res = await postJson('/api/cover', body, TIMEOUT_STORY_MS);
   const out = await res.json();
   if(!out.image) throw new Error('Cover generation returned no image.');
   const cover = 'data:image/png;base64,' + out.image;
