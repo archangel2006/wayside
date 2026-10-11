@@ -4,9 +4,9 @@ Instructions for AI coding agents working on **Wayside**. Read this fully before
 
 ## What this project is
 
-Wayside is a mobile-first web app, deployed publicly as a Hugging Face Space. The user photographs things on a walk. Each photo is cut out, named, and shown in a glass specimen box. Later the user picks finds, sets a theme and place, and a language model writes a short story from them.
+Wayside is a mobile-friendly web application that runs locally. The user photographs things on a walk. Each photo is cut out, named, and shown in a glass specimen box. Later the user picks finds, sets a theme and place, and a language model writes a short story from them.
 
-It is an entry for the Hacktoberfest Open-Source AI Challenge, Week 1, "Touch Grass". The owner has about two days and exams. **Small and working beats ambitious and half-finished.**
+It is an entry for the Hacktoberfest Open-Source AI Challenge, Week 1, "Touch Grass".
 
 ## Current state
 
