@@ -129,17 +129,20 @@ def parse_label_json(text: str) -> Optional[dict]:
 import re as _re
 
 def _clean_llm_text(s: str) -> str:
-    """Strip markdown formatting artifacts that LLMs emit but shouldn't reach the frontend."""
+    """Strip markdown and plain-text formatting artifacts that LLMs emit."""
     # Remove horizontal rules
     s = _re.sub(r'^[-*_]{3,}\s*$', '', s, flags=_re.MULTILINE)
-    # Remove lines that are just labels like "**Title:**", "**Line 1:**", "**Paragraph 1:**"
+    # Remove bold/markdown label lines: **Title:** / **Line 1:** / **Paragraph:**
     s = _re.sub(r'^\*{1,2}(Title|Paragraph|Line|Part|Section|Chapter)\s*\d*\*{0,2}:?\*{0,2}\s*$', '', s, flags=_re.MULTILINE | _re.IGNORECASE)
     # Strip bold/italic markers: **text** -> text, *text* -> text
     s = _re.sub(r'\*{1,2}([^*]+)\*{1,2}', r'\1', s)
     # Strip markdown heading markers at line start (# ## ###)
     s = _re.sub(r'^#{1,6}\s+', '', s, flags=_re.MULTILINE)
-    # Strip "Title: " / "Title:" prefix if it appears on first line
+    # Strip "Title: " / "Title:" prefix if it appears at start
     s = _re.sub(r'^title:\s*', '', s, flags=_re.IGNORECASE)
+    # Strip plain-text section header lines: standalone short lines ending with ":"
+    # e.g. "Opening Scene:", "Discoveries:", "Findings & Observations:", "Sequence:"
+    s = _re.sub(r'^[A-Z][A-Za-z ,&\-]{1,50}:\s*$', '', s, flags=_re.MULTILINE)
     # Collapse excess blank lines to single blank line
     s = _re.sub(r'\n{3,}', '\n\n', s)
     return s.strip()
