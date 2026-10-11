@@ -37,107 +37,148 @@ def _load_model():
         import torch
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
-        logger.info("[Story Init] Loading story model '%s' from local cache...", WAYSIDE_STORY_MODEL)
+        logger.info("[Story Init] Loading story model '%s'...", WAYSIDE_STORY_MODEL)
         t0 = time.time()
         try:
-            _tokenizer = AutoTokenizer.from_pretrained(WAYSIDE_STORY_MODEL, local_files_only=True)
+            _tokenizer = AutoTokenizer.from_pretrained(WAYSIDE_STORY_MODEL)
             _model = AutoModelForCausalLM.from_pretrained(
                 WAYSIDE_STORY_MODEL,
                 dtype=torch.float32,
-                local_files_only=True,
             )
             _model.eval()
             _model_name = WAYSIDE_STORY_MODEL
-            logger.info("[Story Init Success] Model loaded from cache in %.1fs", time.time() - t0)
+            logger.info("[Story Init Success] Model loaded in %.1fs", time.time() - t0)
         except Exception as exc:
-            logger.warning("[Story Init] Local model '%s' not cached or incomplete (%s). Using fallback.", WAYSIDE_STORY_MODEL, exc)
+            logger.warning("[Story Init] Could not load '%s' (%s). Using dynamic story engine.", WAYSIDE_STORY_MODEL, exc)
             raise
     return _tokenizer, _model
 
 
 def _build_prompt(items: list, theme: str, place: str) -> str:
     """
-    Build the story generation prompt. User text is in a clearly delimited
-    data block so the model treats it as content, not instructions.
+    Build the story generation prompt. Instructs the model to write a rich,
+    coherent narrative that respects the physical nature of the finds.
     """
     theme = (theme or "quiet").strip()[:40]
-    place = (place or "").strip()[:60]
+    setting = f" near {place}" if place else " during an afternoon walk"
 
-    # Format each item as a data line — user content is NOT part of instructions
     item_lines = []
-    for it in items[:8]:  # cap at 8 finds
+    for it in items[:8]:
         label = str(it.get("label", "")).strip()[:40]
         desc = str(it.get("description", "")).strip()[:60]
         note = str(it.get("note", "")).strip()[:80]
-        line = f"- {label}: {desc}"
+        line = f"- {label}"
+        if desc and desc.lower() not in ["found on the path", "spotted on the way", "hard to say"]:
+            line += f" ({desc})"
         if note:
-            line += f". Note: {note}"
+            line += f': Note: "{note}"'
         item_lines.append(line)
-    items_block = "\n".join(item_lines) if item_lines else "- a mystery find: hard to say"
-
-    setting_clause = f" set near {place}" if place else ""
+    items_block = "\n".join(item_lines) if item_lines else "- a small wayside treasure"
 
     prompt = (
-        f"You are a gifted storyteller writing an evocative, atmospheric short tale (100 to 150 words).\n"
-        f"Tone and atmosphere: {theme.capitalize()}{setting_clause}.\n"
-        f"Weave these curious finds and memories seamlessly into the scene:\n"
-        f"{items_block}\n"
-        f"Use vivid sensory details, emotional resonance, and creative imagery to bring the walk to life.\n"
+        f"You are a gifted fiction author. Write an imaginative, coherent short story (160 to 220 words){setting}.\n\n"
+        f"Atmosphere & Tone: {theme.capitalize()}, vivid, sensory, and emotionally grounded.\n\n"
+        f"Finds & Observations to weave into the scene:\n"
+        f"{items_block}\n\n"
+        f"Writing Instructions:\n"
+        f"1. Write a real narrative with logical continuity—NEVER simply list items or repeat 'beside it lay'.\n"
+        f"2. Respect context: atmospheric sights belong in the air, creatures move with agency, and ground items rest underfoot.\n"
+        f"3. Weave notes into the protagonist's inner monologue or memories.\n"
+        f"4. Structure: An immersive opening, a meaningful discovery sequence, and a lingering, poetic finish.\n\n"
         f"Format:\n"
-        f"Line 1: A creative, evocative Title\n"
-        f"Line 2: (blank)\n"
-        f"Line 3+: The story text. Return nothing else."
+        f"Line 1: A creative Title (no quotes)\n"
+        f"Line 2: [leave blank]\n"
+        f"Line 3+: The story text."
     )
     return prompt
 
 
 def _fallback_story(items: list, theme: str, place: str) -> dict:
     theme = (theme or "quiet").lower()
-    place_str = f"Near {place}" if place else "Along the wandering trail"
+    place_name = place.strip() if place else "the trail"
 
-    # Theme-adaptive atmospheric opening and sensory adjectives
-    moods = {
-        "quiet": ("a hush fell over the afternoon, soft as falling dust", "whispering secrets to the quiet earth"),
-        "playful": ("the day sparkled with unexpected mischief", "dancing lightly under the playful breeze"),
-        "mysterious": ("shadows stretched long and every corner held a forgotten riddle", "waiting like ancient clues in the stillness"),
-        "gloomy": ("mist hung low like a sleepy breath over the path", "resting cold and silent beneath gray skies"),
-        "curious": ("every stone and leaf seemed to have something urgent to say", "inviting closer inspection with quiet intrigue"),
-        "bright": ("golden light spilled through the leaves in warm patches", "gleaming warmly under the open sky")
+    # Mood-specific settings
+    mood_palettes = {
+        "quiet": {
+            "air": "a stillness so deep you could hear the soft click of branches overhead",
+            "light": "pale amber afternoon light filtering softly through the canopy",
+            "mood": "contemplative calm",
+            "verb": "drifted peacefully"
+        },
+        "curious": {
+            "air": "a crisp breeze full of the scent of turned earth and damp pine",
+            "light": "dancing sunbeams highlighting hidden details in the landscape",
+            "mood": "gentle intrigue",
+            "verb": "stepped with watchful curiosity"
+        },
+        "playful": {
+            "air": "a buoyant breeze carrying the flutter of birds in the trees",
+            "light": "golden afternoon glow bouncing warmly off every surface",
+            "mood": "lighthearted wonder",
+            "verb": "wandered with an easy, adventurous stride"
+        },
+        "mysterious": {
+            "air": "cool air hanging heavy with the silence of forgotten paths",
+            "light": "long, shifting shadows stretching across the quiet ground",
+            "mood": "enchanting enigma",
+            "verb": "moved softly through the stillness"
+        },
+        "gloomy": {
+            "air": "a cool mist curling softly around the damp edges of the trail",
+            "light": "a thoughtful gray overcast sky casting a moody tone",
+            "mood": "wistful quietude",
+            "verb": "walked slowly under the heavy sky"
+        }
     }
-    mood_open, mood_close = moods.get(theme, moods["quiet"])
+    palette = mood_palettes.get(theme, mood_palettes["quiet"])
 
-    if items:
-        main_item = items[0]
-        title = f"The {theme.capitalize()} Chronicle of the {main_item.get('label', 'Wayside Find')}"
+    # Categorize items by natural domain so they make physical and narrative sense
+    def categorize(label: str) -> str:
+        l = label.lower()
+        if any(w in l for w in ["rainbow", "cloud", "sky", "sun", "rain", "mist", "fog", "drizzle", "horizon"]):
+            return "sky"
+        if any(w in l for w in ["cat", "kitten", "dog", "puppy", "bird", "squirrel", "duck", "butterfly", "bee", "rabbit", "beetle"]):
+            return "creature"
+        if any(w in l for w in ["leaf", "flower", "tree", "plant", "acorn", "pinecone", "moss", "fern", "petal", "grass", "mushroom", "bark", "branch"]):
+            return "flora"
+        return "relic"
 
-        item_descriptions = []
-        for it in items[:4]:
-            lbl = it.get("label", "a small find")
-            desc = it.get("description", "").strip()
-            note = it.get("note", "").strip()
-            detail = f"{lbl}"
-            if desc:
-                detail += f", {desc}"
-            if note:
-                detail += f" ({note})"
-            item_descriptions.append(detail)
+    vignettes = []
+    for it in items[:5]:
+        lbl = it.get("label", "").strip()
+        cat = categorize(lbl)
+        note = it.get("note", "").strip()
+        note_str = f' A quiet thought surfaced: "{note}".' if note else ""
 
-        finds_narrative = "; beside it lay ".join(item_descriptions)
-        text = (
-            f"{place_str}, {mood_open}. "
-            f"Wandering with open eyes brought curious discoveries to light: there was {finds_narrative}. "
-            f"Each relic seemed to carry its own quiet memory, {mood_close}. "
-            f"You tucked the impressions into your thoughts like treasures in a pocket, returning home with the world feeling just a little more wondrous."
-        )
-    else:
-        title = f"A {theme.capitalize()} Stroll {place_str}"
-        text = (
-            f"{place_str}, {mood_open}. "
-            f"The trail was still, but the ground was alive with quiet wonders, {mood_close}. "
-            f"You carried the feeling home in your head, a little more {theme} than when you set out."
-        )
+        if cat == "sky":
+            vignettes.append(
+                f"Lifting your eyes above the tree line, {lbl} greeted the afternoon—arching gently across the softening light like an unexpected brushstroke across the heavens.{note_str}"
+            )
+        elif cat == "creature":
+            vignettes.append(
+                f"A sudden flicker of motion caught your eye as {lbl} appeared, observing the path with cautious curiosity before settling quietly into the scene.{note_str}"
+            )
+        elif cat == "flora":
+            vignettes.append(
+                f"Resting against the damp path was {lbl}, its delicate edges holding the cool moisture of the air like a small token left by the changing season.{note_str}"
+            )
+        else:
+            vignettes.append(
+                f"Tucked half-hidden by the roadside, {lbl} caught your attention, bearing the quiet patina of something timeless and undisturbed.{note_str}"
+            )
 
-    return {"title": title, "text": text}
+    p1 = f"Near {place_name}, {palette['air']}, and you {palette['verb']} as {palette['light']} warmed the route."
+    p2 = " ".join(vignettes) if vignettes else "The trail was peaceful, offering quiet moments of discovery at every turn."
+    p3 = (
+        f"By the time the afternoon began to lean toward dusk, each sighting had woven itself into a tapestry of {palette['mood']}. "
+        f"You carried the memories home like small treasures tucked safely in a pocket, with the world feeling just a little more wondrous and alive."
+    )
+
+    full_story = f"{p1}\n\n{p2}\n\n{p3}"
+    first_lbl = items[0].get("label", "Wayside Trail") if items else "Wayside Walk"
+    title = f"The {theme.capitalize()} Chronicle of the {first_lbl.title()}"
+
+    return {"title": title, "text": full_story}
 
 
 def generate_story(items: list, theme: str, place: str) -> dict:
@@ -202,7 +243,7 @@ def generate_story(items: list, theme: str, place: str) -> dict:
         with torch.no_grad():
             output_ids = model.generate(
                 **inputs,
-                max_new_tokens=260,
+                max_new_tokens=380,
                 do_sample=True,
                 temperature=0.88,
                 top_p=0.92,
