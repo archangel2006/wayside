@@ -74,7 +74,11 @@ async function makeCover(el){
   if(!s||s._busy)return;
   s._busy=true;renderTrip(true);
   try{
-    const out=await api.coverImage(s);
+    const storyItems=(s.items&&s.items.length)
+      ? s.items
+      : (t&&t.items?t.items.filter(i=>(s.labels||[]).includes(i.label)):[]);
+    const itemsToUse=(storyItems&&storyItems.length)?storyItems:(t&&t.items?t.items:[]);
+    const out=await api.coverImage(s,itemsToUse);
     s.cover=out.cover;s.coverPrompt=out.prompt;
   }catch(err){
     toast(err.message||'The cover did not work out. Try again.');
@@ -82,3 +86,4 @@ async function makeCover(el){
   s._busy=false;
   if(state.view==='trip')renderTrip(true);
 }
+

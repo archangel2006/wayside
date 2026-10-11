@@ -88,7 +88,7 @@ async function mockSnap(input, onStatus){
     : {art: s.art, label: s.label, desc: s.desc};
 }
 
-/* Picked finds + theme + place in, a story out: { title, theme, place, labels, text }. */
+/* Picked finds + theme + place in, a story out: { title, theme, place, labels, text, items }. */
 export async function writeStory({items, theme, place}){
   if(MOCK_STORY){
     await sleep(1600);
@@ -100,15 +100,24 @@ export async function writeStory({items, theme, place}){
     place
   });
   const out = await res.json();
-  return {title: out.title, text: out.text, theme: (theme||'quiet').toLowerCase(), place, labels: items.map(i => i.label)};
+  return {
+    title: out.title,
+    text: out.text,
+    theme: (theme||'quiet').toLowerCase(),
+    place,
+    labels: items.map(i => i.label),
+    items: items
+  };
 }
 
-/* A story in, a cover image out: { cover (data URL), prompt }. Uses canvas stand-in. */
-export async function coverImage(story){
+/* A story in, a cover image out: { cover (data URL), prompt }. Uses scrapbook collage painter. */
+export async function coverImage(story, items = []){
   const prompt = coverPrompt(story);
-  await sleep(2600);
+  const itemsToUse = (items && items.length) ? items : (story.items || []);
+  await sleep(400);
   story.seed = (story.seed || 0) + 1;
-  return {cover: drawCover(story, story.seed * 7919 + hash(story.title)), prompt};
+  const cover = await drawCover(story, story.seed * 7919 + hash(story.title), itemsToUse);
+  return {cover, prompt};
 }
 
 /* Mock story writer. Used while MOCK_STORY is true. */
@@ -127,6 +136,8 @@ function fakeStory(items, theme, place){
     theme: th,
     place,
     labels: items.map(i => i.label),
+    items: items,
     text: [open, bits.join(' '), end].join('\n')
   };
 }
+
