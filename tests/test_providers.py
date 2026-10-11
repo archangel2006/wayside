@@ -1,6 +1,6 @@
 """
 tests/test_providers.py
-Tests for the provider abstraction (HF Inference API, OpenAI-compatible, fallback, parser utilities).
+Tests for the provider abstraction (HF Inference API, fallback, parser utilities).
 """
 import io
 import unittest.mock as mock
@@ -10,9 +10,7 @@ from app.services.providers import (
     parse_label_json,
     parse_story_text,
     call_hf_vision,
-    call_openai_compatible_vision,
     call_hf_story,
-    call_openai_compatible_story,
 )
 from app.services.vision import label_image, FALLBACK
 from app.services.story import generate_story
@@ -77,20 +75,6 @@ def test_hf_vision_provider_mock():
     with mock.patch("httpx.Client.post", return_value=mock_resp):
         res = call_hf_vision(img, "test-model")
         assert res == {"label": "Oak leaf", "description": "golden and notched"}
-
-
-def test_openai_story_provider_mock():
-    mock_resp = mock.MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "choices": [
-            {"message": {"content": "The Forest Path\n\nA quiet trail under yellow pines."}}
-        ]
-    }
-
-    with mock.patch("httpx.Client.post", return_value=mock_resp):
-        text = call_openai_compatible_story("test prompt", "test-model")
-        assert "The Forest Path" in text
 
 
 def test_vision_fallback_provider():

@@ -7,7 +7,6 @@ Supports:
   - Vision: Salesforce/blip-image-captioning-base  (image-to-text pipeline)
   - Story:  Falconsai/text_summarization via text-generation pipeline
 - "hf-router": HF Router (paid, credits required) — kept for completeness
-- "openai": OpenAI-compatible endpoints (Groq, Together, OpenRouter, vLLM, Ollama)
 - "fallback": Instant offline heuristic fallback (always works, no network)
 
 Maintains identical response contracts:
@@ -36,8 +35,6 @@ from app.config import (
     HF_TOKEN,
     HF_API_BASE,
     HF_ROUTER_BASE,
-    OPENAI_API_BASE,
-    OPENAI_API_KEY,
     WAYSIDE_VISION_MODEL,
     WAYSIDE_STORY_MODEL,
     MODEL_TIMEOUT_SEC,
@@ -371,74 +368,3 @@ def call_hf_story(prompt: str, model: str = WAYSIDE_STORY_MODEL) -> Optional[str
     """Legacy name — tries free serverless first, then router."""
     return call_hf_free_story(prompt) or call_hf_router_story(prompt, model)
 
-
-# --------------------------------------------------------------------------
-# OpenAI-compatible (Groq, Together, Ollama, OpenRouter, etc.)
-# --------------------------------------------------------------------------
-
-def call_openai_compatible_vision(image: Image.Image, model: str = WAYSIDE_VISION_MODEL) -> Optional[dict]:
-    """Call an OpenAI-compatible vision endpoint (e.g. Groq, Together, Ollama, OpenRouter)."""
-    b64_img = pil_to_base64_jpeg(image)
-    headers = {"Content-Type": "application/json"}
-    if OPENAI_API_KEY:
-        headers["Authorization"] = f"Bearer {OPENAI_API_KEY}"
-
-    base = OPENAI_API_BASE.rstrip("/")
-    url = f"{base}/chat/completions"
-    payload = {
-        "model": model,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": LABEL_PROMPT},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}}
-                ]
-            }
-        ],
-        "max_tokens": 60,
-        "temperature": 0.2
-    }
-
-    try:
-        with httpx.Client(timeout=float(MODEL_TIMEOUT_SEC)) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                content = data["choices"][0]["message"]["content"]
-                return parse_label_json(content)
-            else:
-                logger.warning("[OpenAI Vision API] HTTP %s: %s", resp.status_code, resp.text[:200])
-    except Exception as exc:
-        logger.error("[OpenAI Vision API Error] %s", exc)
-
-    return None
-
-
-def call_openai_compatible_story(prompt: str, model: str = WAYSIDE_STORY_MODEL) -> Optional[str]:
-    """Call OpenAI-compatible endpoint for story generation."""
-    headers = {"Content-Type": "application/json"}
-    if OPENAI_API_KEY:
-        headers["Authorization"] = f"Bearer {OPENAI_API_KEY}"
-
-    base = OPENAI_API_BASE.rstrip("/")
-    url = f"{base}/chat/completions"
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 220,
-        "temperature": 0.7
-    }
-
-    try:
-        with httpx.Client(timeout=float(MODEL_TIMEOUT_SEC)) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                return data["choices"][0]["message"]["content"]
-            else:
-                logger.warning("[OpenAI Story API] HTTP %s: %s", resp.status_code, resp.text[:200])
-    except Exception as exc:
-        logger.error("[OpenAI Story API Error] %s", exc)
-
-    return None

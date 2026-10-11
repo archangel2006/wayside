@@ -4,8 +4,8 @@ Real find labeling using vision providers or a local VLM.
 
 Environment variables:
   WAYSIDE_VISION_PROVIDER  Provider: "hf" (free HF API), "hf-router" (paid router),
-                           "openai" (OpenAI-compatible), "fallback", or "local" (default)
-  WAYSIDE_VISION_MODEL     Model ID (used by hf-router / openai providers)
+                           "fallback", or "local" (default)
+  WAYSIDE_VISION_MODEL     Model ID (used by hf-router provider)
 
 The service is fully lazy-loaded — the model is only instantiated on first request,
 so server startup remains fast.
@@ -160,10 +160,6 @@ def label_image(image: Image.Image) -> dict:
         res = call_hf_router_vision(image, model=WAYSIDE_VISION_MODEL)
         return res if res is not None else FALLBACK
 
-    if WAYSIDE_VISION_PROVIDER in ("openai", "openai-compatible"):
-        from app.services.providers import call_openai_compatible_vision
-        res = call_openai_compatible_vision(image, model=WAYSIDE_VISION_MODEL)
-        return res if res is not None else FALLBACK
 
     if WAYSIDE_VISION_PROVIDER in ("fallback", "mock"):
         return FALLBACK

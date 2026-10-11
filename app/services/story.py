@@ -209,11 +209,6 @@ def generate_story(items: list, theme: str, place: str) -> dict:
         parsed = parse_story_text(raw, fallback["title"]) if raw else None
         return parsed if parsed is not None else fallback
 
-    if WAYSIDE_STORY_PROVIDER in ("openai", "openai-compatible"):
-        from app.services.providers import call_openai_compatible_story
-        raw = call_openai_compatible_story(prompt, model=WAYSIDE_STORY_MODEL)
-        parsed = parse_story_text(raw, fallback["title"]) if raw else None
-        return parsed if parsed is not None else fallback
 
     if WAYSIDE_STORY_PROVIDER in ("fallback", "mock"):
         return fallback
