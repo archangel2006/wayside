@@ -31,15 +31,23 @@ Wayside is designed to encourage stepping outside and observing the physical wor
 
 ```mermaid
 flowchart TD
-    Walk(["1. Head outside (Touch grass)"]) --> Snap["2. Snap photos of trail finds"]
-    Snap --> Cutout["3. Background cutout (rembg u2netp)"]
-    Cutout --> Label["4. Identify & describe (SmolVLM)"]
-    Label --> Specimen["5. Pin in interactive glass specimen box"]
-    Specimen --> Notes["6. Add your personal notes & memories"]
-    Notes --> Archive["7. Save to walk album"]
-    Archive --> Story["8. Select finds & theme -> Weave story (Qwen2.5)"]
-    Story --> Cover["9. Paint watercolor storybook cover (SD-Turbo)"]
-    Cover --> Vault(["10. Read, listen & keep in story vault"])
+    subgraph Row1 ["Outdoors: Specimen collection"]
+        direction LR
+        A["1. Head outside (Touch grass)"] --> B["2. Snap trail finds"]
+        B --> C["3. Cutout (rembg u2netp)"]
+        C --> D["4. Identify & label (SmolVLM)"]
+        D --> E["5. Pin in glass specimen box"]
+    end
+
+    subgraph Row2 ["Back home: Album curation & storytelling"]
+        direction RL
+        F["6. Add personal field notes"] --> G["7. Save to walk album"]
+        G --> H["8. Weave story (Qwen2.5)"]
+        H --> I["9. Paint cover (SD-Turbo)"]
+        I --> J["10. Revisit in story vault"]
+    end
+
+    E --> F
 ```
 
 1. **Start your walk:** Head outdoors. Look closely at the ground, trees, and sidewalks for textures, shapes, and curiosities.
@@ -219,17 +227,14 @@ To connect a phone to the app:
 | Variable                    | Default                                         | Description                                                 |
 | :-------------------------- | :---------------------------------------------- | :---------------------------------------------------------- |
 | `PORT`                    | `7860`                                        | Server HTTP listening port                                  |
-| `WAYSIDE_VISION_PROVIDER` | `local`                                       | Vision provider:`local`, `hf`, `openai`, `fallback` |
-| `WAYSIDE_STORY_PROVIDER`  | `local`                                       | Story provider:`local`, `hf`, `openai`, `fallback`  |
+| `WAYSIDE_VISION_PROVIDER` | `local`                                       | Vision provider: `local`, `hf`, `fallback`                  |
+| `WAYSIDE_STORY_PROVIDER`  | `local`                                       | Story provider: `local`, `hf`, `fallback`                   |
 | `WAYSIDE_VISION_MODEL`    | `HuggingFaceTB/SmolVLM-256M-Instruct`         | Vision model repository ID                                  |
 | `WAYSIDE_STORY_MODEL`     | `Qwen/Qwen2.5-0.5B-Instruct`                  | Story model repository ID                                   |
 | `WAYSIDE_IMAGE_MODEL`     | `stabilityai/sd-turbo`                        | Cover text-to-image model repository ID                     |
 | `WAYSIDE_IMAGE_STEPS`     | `2`                                           | Number of SD-Turbo diffusion steps                          |
-| `HF_TOKEN`                | `""`                                          | Hugging Face token for serverless API or rate limit bump    |
+| `HF_TOKEN`                | `""`                                          | Optional Hugging Face token for serverless API or rate limit bump |
 | `HF_API_BASE`             | `https://api-inference.huggingface.co/models` | Free serverless Hugging Face inference API base URL         |
-| `HF_ROUTER_BASE`          | `https://router.huggingface.co/v1`            | Hugging Face paid router API base URL                       |
-| `OPENAI_API_BASE`         | `https://api.openai.com/v1`                   | Base URL for OpenAI-compatible inference                    |
-| `OPENAI_API_KEY`          | `""`                                          | API key for OpenAI-compatible endpoint                      |
 | `MAX_UPLOAD_MB`           | `8`                                           | Maximum image upload file size in megabytes                 |
 | `RATE_LIMIT_PER_MIN`      | `30`                                          | Per-client sliding window request rate limit                |
 | `MODEL_TIMEOUT_SEC`       | `120`                                         | Per-request model HTTP timeout in seconds                   |
