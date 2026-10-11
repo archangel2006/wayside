@@ -75,6 +75,7 @@ def _build_prompt(items: list, theme: str, place: str) -> str:
         item_lines.append(line)
     items_block = "\n".join(item_lines) if item_lines else "- a small wayside treasure"
 
+    
     prompt = (
         f"You are a gifted fiction author. Write an imaginative, coherent short story (160 to 220 words){setting}.\n\n"
         f"Atmosphere & Tone: {theme.capitalize()}, vivid, sensory, and emotionally grounded.\n\n"
@@ -84,7 +85,7 @@ def _build_prompt(items: list, theme: str, place: str) -> str:
         f"1. Write a real narrative with logical continuity—NEVER simply list items or repeat 'beside it lay'.\n"
         f"2. Respect context: atmospheric sights belong in the air, creatures move with agency, and ground items rest underfoot.\n"
         f"3. Weave notes into the protagonist's inner monologue or memories.\n"
-        f"4. Structure: An immersive opening, a meaningful discovery sequence, and a lingering, poetic finish.\n\n"
+        f"4. Structure: An immersive opening, a meaningful discovery sequence, and a lingering, poetic finish. Do NOT include section headers.\n\n"
         f"Format:\n"
         f"Line 1: A creative Title (no quotes)\n"
         f"Line 2: [leave blank]\n"
@@ -258,11 +259,14 @@ def generate_story(items: list, theme: str, place: str) -> dict:
         raw = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
         logger.info("[Story Output] Raw (first 300 chars): %r", raw[:300])
 
-        # Parse: first line is title, rest is story
-        lines = [l.strip() for l in raw.split("\n") if l.strip()]
+        from app.services.providers import _clean_llm_text
+        cleaned = _clean_llm_text(raw)
+
+        # Parse: first non-empty line is title, rest is story
+        lines = [l.strip() for l in cleaned.split("\n") if l.strip()]
         if len(lines) >= 2:
             title = lines[0].strip("#").strip()
-            text = "\n".join(lines[1:]).strip()
+            text = _clean_llm_text("\n".join(lines[1:]))
         elif len(lines) == 1:
             title = _fallback_story(items, theme, place)["title"]
             text = lines[0]
