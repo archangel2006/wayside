@@ -8,26 +8,26 @@ Paste any block into `README.md` or `docs/`. GitHub renders Mermaid code fences.
 flowchart LR
   subgraph Browser["Phone or laptop browser"]
     UI["static/index.html"]
-    DB[("IndexedDB<br/>albums, cutouts, stories")]
+    MEM[("In-memory state<br/>resets on reload")]
   end
 
-  subgraph Space["Hugging Face Space: Docker, free CPU"]
+  subgraph Host["Laptop host: FastAPI on port 7860"]
     API["FastAPI app<br/>stateless"]
     CUT["rembg<br/>cutouts"]
-    VIS["Small vision model<br/>labels"]
-    LLM["Small language model<br/>stories, challenges"]
-    IMG["Small image model<br/>story covers"]
+    VIS["SmolVLM-256M<br/>labels"]
+    LLM["Qwen2.5-0.5B<br/>stories"]
+    IMG["SD-Turbo<br/>story covers"]
   end
 
-  HUB["Hugging Face Hub<br/>model weights"]
+  HUB["Hugging Face Hub / local cache<br/>model weights"]
 
-  UI <--> DB
-  UI -->|"HTTPS"| API
+  UI <--> MEM
+  UI -->|"HTTP (LAN / Wi-Fi)"| API
   API --> CUT
   API --> VIS
   API --> LLM
   API --> IMG
-  HUB -.->|"downloaded at build"| API
+  HUB -.->|"cached on disk"| Host
 ```
 
 ## 2. User flow
@@ -90,10 +90,10 @@ flowchart LR
 sequenceDiagram
   actor U as You
   participant UI as Browser
-  participant API as FastAPI on the Space
+  participant API as FastAPI Backend
   participant R as rembg
   participant V as Vision model
-  participant DB as IndexedDB
+  participant MEM as In-memory State
 
   U->>UI: Take or pick a photo
   par Cut out
@@ -107,7 +107,7 @@ sequenceDiagram
     V-->>API: label and description
     API-->>UI: Label
   end
-  UI->>DB: Save the find
+  UI->>MEM: Save the find in memory
   UI-->>U: New glass box appears
 ```
 
@@ -117,9 +117,9 @@ sequenceDiagram
 sequenceDiagram
   actor U as You
   participant UI as Browser
-  participant API as FastAPI on the Space
+  participant API as FastAPI Backend
   participant L as Language model
-  participant DB as IndexedDB
+  participant MEM as In-memory State
 
   U->>UI: Tick finds, set theme and setting
   UI->>API: POST /api/story with items, notes, theme, place
@@ -128,7 +128,7 @@ sequenceDiagram
   API-->>UI: Story
   UI-->>U: Read or listen
   U->>UI: Save to vault
-  UI->>DB: Store story with the walk
+  UI->>MEM: Store story with the walk
 ```
 
 ## 6. Make a cover
@@ -137,16 +137,16 @@ sequenceDiagram
 sequenceDiagram
   actor U as You
   participant UI as Browser
-  participant API as FastAPI on the Space
-  participant I as Image model
-  participant DB as IndexedDB
+  participant API as FastAPI Backend
+  participant I as Image model (SD-Turbo)
+  participant MEM as In-memory State
 
   U->>UI: Tap Make cover
-  UI->>API: POST /api/cover with title, theme, place, labels (text only)
-  API->>I: Text prompt, few denoising steps
-  I-->>API: Image
-  API-->>UI: PNG
-  UI->>DB: Store cover with the story
+  UI->>API: POST /api/cover with title, theme, place, labels
+  API->>I: Two-step prompt (scene sentence + SD-Turbo)
+  I-->>API: Generated image (PNG)
+  API-->>UI: PNG + scene description
+  UI->>MEM: Store cover with the story
   UI-->>U: Cover appears on the story
 ```
 

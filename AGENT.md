@@ -10,29 +10,12 @@ It is an entry for the Hacktoberfest Open-Source AI Challenge, Week 1, "Touch Gr
 
 ## Current state
 
-- `static/` is a complete clickable prototype split into plain ES modules: loading screen, landing page, sidebar app, six themes, responsive layout, voice controls, cover button.
-- `static/js/api.js` holds every AI call. It has `MOCK = true`, so the UI runs with canned answers. Real `fetch` code is written for each endpoint but untested.
-- `static/js/storage.js` (IndexedDB) is written but not wired in.
-- All AI behavior in it is **fake**: `SAMPLES`, `PROMPTS`, `fakeStory()` and `drawCover()` return canned or templated output.
-- Data is held in memory only. Refreshing resets it.
-- The Make cover button draws a canvas stand-in (`drawCover`). Replace it with the image model's output.
-- The backend does not exist yet. Building it, and deploying it, is the main job.
-
-When you make something real, remove the stand-in it replaces. Do not leave both.
-
-## Hard rules
-
-1. **Open models only, and they must be load-bearing.** Use open-weight models from the Hugging Face Hub and open-source tools (rembg, transformers, Piper). Never call closed AI APIs (OpenAI, Anthropic, Google, etc.), even as a fallback.
-2. **The server is stateless and keeps nothing.** Do not write uploads, results, or user text to disk. Do not log image contents or story text. Albums live in the user's browser (IndexedDB).
-3. **Be honest in copy and docs.** Allowed claims: open models only, no closed AI API, free to run, swappable models, albums saved in your own browser. **Forbidden claims:** "photos never leave your device", "runs offline", "runs on your phone", "private by design". Photos are sent to the Space for processing.
-4. **No copyrighted content.** No Pokémon or other branded characters, no song lyrics, no copied art. Specimens are the user's own photos or the original SVGs in the prototype.
-5. **Keep the screen minimal.** The outdoor part is the point. No points, streaks, leaderboards, or notifications.
-6. **No database, no accounts, no auth.**
-7. **Do not widen scope.** Detection of multiple objects, video generation, maps, multiplayer are out of scope unless the owner asks.
-
-## Stack and layout
-
-- Hosting: Hugging Face Space, SDK Docker, free CPU, port 7860.
+- `static/` is a complete responsive application split into plain ES modules: loading screen, landing page, sidebar app, six themes, responsive layout, voice controls, cover button.
+- `static/js/api.js` connects to the FastAPI backend (`MOCK_CUTOUT = false`, `MOCK_LABEL = false`, `MOCK_STORY = false`, `MOCK_COVER = false`).
+- `static/js/storage.js` (IndexedDB) is not wired in. Data is held in browser memory only and resets on reload.
+- The backend in `app/` is fully functional with FastAPI, concurrency locks in `app/limits.py`, and local open models (`rembg`, `SmolVLM-256M-Instruct`, `Qwen2.5-0.5B-Instruct`, and `stabilityai/sd-turbo`).
+- The Make cover button calls `POST /api/cover` which runs a two-step generation: Step A creates a scene sentence via Qwen, and Step B paints a 512x512 watercolor illustration via SD-Turbo.
+- Runs locally on the host machine (`http://127.0.0.1:7860`). Remote deployment is not configured.
 - Backend: Python 3.10+, FastAPI, Uvicorn. Same app serves the API and `static/`.
 - Cutouts: `rembg` (CPU).
 - Vision and text: `transformers` on CPU. Model names come from env vars `WAYSIDE_VISION_MODEL` and `WAYSIDE_STORY_MODEL`. Starting candidates: `HuggingFaceTB/SmolVLM-256M-Instruct` and `Qwen/Qwen2.5-1.5B-Instruct`. Both are untested on free CPU, so measure before committing.
